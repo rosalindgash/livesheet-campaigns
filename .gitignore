@@ -29,12 +29,17 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+next-dev*.log
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
+!.env.example
 
 # vercel
 .vercel
+
+# supabase local metadata
+supabase/.temp/
 
 # typescript
 *.tsbuildinfo
