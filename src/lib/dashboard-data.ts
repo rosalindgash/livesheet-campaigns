@@ -1,4 +1,5 @@
 import { getAuthEnvStatus } from "@/lib/auth";
+import { listCampaigns, type Campaign } from "@/lib/campaigns";
 import {
   getConnectedGoogleAccount,
   type ConnectedGoogleAccount,
@@ -22,6 +23,7 @@ export type DashboardSnapshot = {
     sentToday: number;
     recentRuns: number;
   };
+  campaigns: Campaign[];
   settings: {
     ownerEmail: string | null;
     globalDailySendCap: number | null;
@@ -50,6 +52,7 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
         reachable: false,
       },
       totals: emptyTotals,
+      campaigns: [],
       settings: emptySettings(),
       google: {
         configured: google.configured,
@@ -90,7 +93,7 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
       throw firstError;
     }
 
-    const googleAccount = await loadGoogleAccount();
+    const [googleAccount, campaigns] = await Promise.all([loadGoogleAccount(), listCampaigns()]);
 
     return {
       auth,
@@ -104,6 +107,7 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
         sentToday: sentTodayResult.count ?? 0,
         recentRuns: recentRunsResult.count ?? 0,
       },
+      campaigns,
       settings: {
         ownerEmail: settingsResult.data?.owner_email ?? null,
         globalDailySendCap: settingsResult.data?.global_daily_send_cap ?? null,
@@ -126,6 +130,7 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
         error: formatErrorMessage(error, "Unknown Supabase connection error"),
       },
       totals: emptyTotals,
+      campaigns: [],
       settings: emptySettings(),
       google: {
         configured: google.configured,

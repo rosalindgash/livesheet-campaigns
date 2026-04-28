@@ -6,6 +6,10 @@ Status: complete, copied into the app folder, and verified on 2026-04-28.
 
 ## Phase 2 - Google OAuth
 
+Status: complete; smoke test passed.
+
+## Phase 3 - Campaign CRUD
+
 Status: complete and ready for review.
 
 ## Completed Work
@@ -49,6 +53,25 @@ Status: complete and ready for review.
 - Kept campaign CRUD, Sheets access, Gmail sending, scheduling, and sequences
   out of Phase 2.
 
+## Phase 3 Completed Work
+
+- Added a campaign data/model helper for listing campaigns, loading campaign
+  details, parsing Google Sheet IDs from sheet URLs, loading Google account
+  options, and preparing form defaults.
+- Added campaign create, update, pause, resume, and delete server actions.
+- Added `/campaigns` dashboard list with status, Google account association,
+  worksheet, send plan, last run placeholder, and row actions.
+- Added `/campaigns/new` create form.
+- Added `/campaigns/[campaignId]` detail page.
+- Added `/campaigns/[campaignId]/edit` edit form.
+- Added campaign cards to `/dashboard`.
+- Added UI support for storing name, description, Google account association,
+  sheet URL, parsed sheet ID, worksheet/tab name, status, daily send cap,
+  timezone, send time, selected send days, and nullable last-run timestamps.
+- Kept Google Sheets validation, Gmail sending, campaign execution, scheduling
+  cron, template rendering, sequences, unsubscribe, and reply detection out of
+  Phase 3.
+
 ## Changed Files
 
 - `livesheet-campaigns/.env.example`
@@ -58,6 +81,12 @@ Status: complete and ready for review.
 - `livesheet-campaigns/package.json`
 - `livesheet-campaigns/scripts/generate-password-hash.mjs`
 - `livesheet-campaigns/src/app/dashboard/page.tsx`
+- `livesheet-campaigns/src/app/campaigns/CampaignForm.tsx`
+- `livesheet-campaigns/src/app/campaigns/actions.ts`
+- `livesheet-campaigns/src/app/campaigns/new/page.tsx`
+- `livesheet-campaigns/src/app/campaigns/page.tsx`
+- `livesheet-campaigns/src/app/campaigns/[campaignId]/edit/page.tsx`
+- `livesheet-campaigns/src/app/campaigns/[campaignId]/page.tsx`
 - `livesheet-campaigns/src/app/api/google/auth/callback/route.ts`
 - `livesheet-campaigns/src/app/api/google/auth/start/route.ts`
 - `livesheet-campaigns/src/app/api/google/disconnect/route.ts`
@@ -69,6 +98,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/app/page.tsx`
 - `livesheet-campaigns/src/app/page.module.css` (removed starter styles)
 - `livesheet-campaigns/src/lib/auth.ts`
+- `livesheet-campaigns/src/lib/campaigns.ts`
 - `livesheet-campaigns/src/lib/crypto/token-encryption.ts`
 - `livesheet-campaigns/src/lib/dashboard-data.ts`
 - `livesheet-campaigns/src/lib/env.ts`
@@ -147,8 +177,8 @@ npm run build
 
 Verification completed in this phase:
 
-- `npm run lint` passed on 2026-04-28 after Phase 2.
-- `npm run build` passed on 2026-04-28 after Phase 2.
+- `npm run lint` passed on 2026-04-28 after Phase 3.
+- `npm run build` passed on 2026-04-28 after Phase 3.
 - `supabase db push` applied
   `supabase/migrations/202604280001_initial_schema.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-28.
@@ -158,14 +188,13 @@ Verification completed in this phase:
   `campaign_runs`, `suppression_list`, `unsubscribe_events`, and
   `reply_events`.
 - The production build used `.env.local`, compiled successfully with Next.js
-  16.2.4 and Turbopack, completed TypeScript checks, generated all 10 static
+  16.2.4 and Turbopack, completed TypeScript checks, generated all 12 static
   pages, and finalized route optimization.
 - Verified app routes in the build output:
   `/`, `/_not-found`, `/api/google/auth/callback`,
-  `/api/google/auth/start`, `/api/google/disconnect`, `/dashboard`, `/login`,
-  and `/logout`.
-- Supabase migration file was created but not applied locally because no
-  Supabase project credentials were provided in the workspace.
+  `/api/google/auth/start`, `/api/google/disconnect`, `/campaigns`,
+  `/campaigns/[campaignId]`, `/campaigns/[campaignId]/edit`,
+  `/campaigns/new`, `/dashboard`, `/login`, and `/logout`.
 
 Manual checks after env and database setup:
 
@@ -175,6 +204,12 @@ Manual checks after env and database setup:
 - Confirm `/dashboard` loads and shows setup/database status.
 - Use `Connect Google` to start OAuth and confirm the connected Gmail address
   appears after callback.
+- Visit `/campaigns`.
+- Create a draft campaign with a Google Sheet URL and confirm the sheet ID is
+  parsed on the campaign detail page.
+- Edit the campaign and confirm updates persist.
+- Use pause/resume and confirm the status changes.
+- Delete the campaign and confirm it disappears from the list.
 - Use `Disconnect` and confirm the connected account is removed.
 - Use `Sign out` and confirm the session is cleared.
 
@@ -182,7 +217,6 @@ Manual checks after env and database setup:
 
 - Google Sheets access.
 - Gmail sending.
-- Campaign CRUD.
 - Template rendering.
 - Scheduler and cron routes.
 - Live row detection and writeback.
@@ -191,4 +225,5 @@ Manual checks after env and database setup:
 
 ## Next Steps
 
-Phase 3 should implement campaign CRUD only after Phase 2 review is complete.
+Phase 4 should implement Google Sheets integration only after Phase 3 review is
+complete.

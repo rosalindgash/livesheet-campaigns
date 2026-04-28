@@ -1,11 +1,12 @@
 # LiveSheet Campaigns
 
-Single-user Google Sheets and Gmail outreach sequencer. Phase 2 contains the
-app foundation plus Google OAuth connection, encrypted token storage, token
-refresh handling, connected account display, and disconnect.
+Single-user Google Sheets and Gmail outreach sequencer. Phase 3 contains the
+app foundation, Google OAuth connection, encrypted token storage, token refresh
+handling, connected account display, disconnect, and campaign CRUD.
 
-Sheets access, Gmail sending, campaign CRUD, scheduling, sequences, and reply
-detection are intentionally not implemented yet.
+Sheets access, Gmail sending, campaign execution, scheduling, sequences,
+template rendering, unsubscribe, and reply detection are intentionally not
+implemented yet.
 
 ## Local Setup
 
@@ -73,7 +74,8 @@ npm run dev
 
 Open `http://localhost:3000`, sign in with the owner password, and verify the
 dashboard loads. Use the Google account panel to connect or disconnect the
-owner Google account.
+owner Google account. Use `/campaigns` to create, edit, pause, resume, and
+delete draft campaign records.
 
 ## Verification
 

@@ -55,6 +55,7 @@ export default async function DashboardPage({
         </div>
         <div className="topbar-actions">
           <span>{session.email}</span>
+          <Link href="/campaigns">Campaigns</Link>
           <Link href="/logout">Sign out</Link>
         </div>
       </header>
@@ -78,6 +79,37 @@ export default async function DashboardPage({
         <Metric label="Campaigns" value={snapshot.totals.campaigns.toString()} />
         <Metric label="Sent today" value={snapshot.totals.sentToday.toString()} />
         <Metric label="Recent runs" value={snapshot.totals.recentRuns.toString()} />
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Phase 3</p>
+            <h2>Campaigns</h2>
+          </div>
+          <Link className="button-link" href="/campaigns/new">
+            New campaign
+          </Link>
+        </div>
+
+        {snapshot.campaigns.length > 0 ? (
+          <div className="campaign-list">
+            {snapshot.campaigns.slice(0, 5).map((campaign) => (
+              <Link className="campaign-list-item" href={`/campaigns/${campaign.id}`} key={campaign.id}>
+                <div>
+                  <strong>{campaign.name}</strong>
+                  <span>{campaign.googleAccountEmail ?? "No Google account selected"}</span>
+                </div>
+                <div>
+                  <span className={`status-pill ${campaign.status}`}>{campaign.status}</span>
+                  <span>{campaign.dailySendCap}/day</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="muted">No campaigns yet. Create the first draft campaign when ready.</p>
+        )}
       </section>
 
       <section className="grid two">

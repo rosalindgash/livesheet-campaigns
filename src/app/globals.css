@@ -51,7 +51,9 @@ a {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -92,12 +94,23 @@ button:hover {
   background: #6f2118;
 }
 
-input {
+.small-button {
+  padding: 0.45rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+input,
+select,
+textarea {
   border: 1px solid var(--border);
   border-radius: 0.9rem;
   background: white;
   color: var(--foreground);
   padding: 0.9rem 1rem;
+}
+
+textarea {
+  resize: vertical;
 }
 
 label {
@@ -141,7 +154,8 @@ label {
 .grid,
 .stack,
 .status-row,
-.details-list div {
+.details-list div,
+.row-actions {
   display: flex;
 }
 
@@ -330,6 +344,148 @@ label {
   padding: 0.35rem 0.55rem;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.field.full,
+.form-actions.full {
+  grid-column: 1 / -1;
+}
+
+.day-picker {
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  padding: 0.9rem 1rem;
+}
+
+.day-picker legend {
+  font-weight: 800;
+  padding: 0 0.25rem;
+}
+
+.day-picker div,
+.form-actions,
+.campaign-list-item {
+  display: flex;
+}
+
+.day-picker div {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.day-picker label {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.form-actions,
+.row-actions {
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.85rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.subtle {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.status-pill {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 0.3rem 0.5rem;
+  text-transform: uppercase;
+}
+
+.status-pill.draft {
+  background: rgb(102 112 101 / 14%);
+  color: var(--muted);
+}
+
+.status-pill.active {
+  background: rgb(47 122 76 / 15%);
+  color: var(--success);
+}
+
+.status-pill.paused {
+  background: rgb(190 136 31 / 18%);
+  color: #80520f;
+}
+
+.status-pill.completed {
+  background: rgb(40 95 72 / 18%);
+  color: var(--accent-strong);
+}
+
+.status-pill.error {
+  background: rgb(143 47 34 / 14%);
+  color: var(--danger);
+}
+
+.campaign-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.campaign-list-item {
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  padding: 0.85rem 1rem;
+}
+
+.campaign-list-item div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.campaign-list-item span {
+  color: var(--muted);
+}
+
 @media (max-width: 760px) {
   .topbar,
   .topbar-actions,
@@ -345,7 +501,17 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
   .account-details dd {
     text-align: left;
+  }
+
+  .campaign-list-item,
+  .row-actions {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
