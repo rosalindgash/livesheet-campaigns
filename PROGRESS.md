@@ -10,6 +10,10 @@ Status: complete; smoke test passed.
 
 ## Phase 3 - Campaign CRUD
 
+Status: complete; manual smoke test passed with dummy/test data.
+
+## Phase 4 - Google Sheets Validation
+
 Status: complete and ready for review.
 
 ## Completed Work
@@ -72,6 +76,22 @@ Status: complete and ready for review.
   cron, template rendering, sequences, unsubscribe, and reply detection out of
   Phase 3.
 
+## Phase 4 Completed Work
+
+- Added Google Sheets API helpers using the connected Google account and
+  refreshed OAuth access token.
+- Added spreadsheet metadata validation for configured Sheet URL/ID.
+- Added worksheet/tab existence checks.
+- Added worksheet header loading from row 1.
+- Added first 10 data rows as a preview table.
+- Added required column checks based on the stored column mapping.
+- Added campaign column mapping reads and upserts using
+  `campaign_column_mappings`.
+- Added column mapping controls on the campaign detail page.
+- Added sheet validation status messages and worksheet list display.
+- Kept Gmail sending, campaign execution, scheduling cron, template rendering,
+  sequences, unsubscribe, and reply detection out of Phase 4.
+
 ## Changed Files
 
 - `livesheet-campaigns/.env.example`
@@ -87,6 +107,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/app/campaigns/page.tsx`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/edit/page.tsx`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/page.tsx`
+- `livesheet-campaigns/src/app/campaigns/[campaignId]/sheet-actions.ts`
 - `livesheet-campaigns/src/app/api/google/auth/callback/route.ts`
 - `livesheet-campaigns/src/app/api/google/auth/start/route.ts`
 - `livesheet-campaigns/src/app/api/google/disconnect/route.ts`
@@ -105,6 +126,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/lib/google/accounts.ts`
 - `livesheet-campaigns/src/lib/google/oauth.ts`
 - `livesheet-campaigns/src/lib/google/state.ts`
+- `livesheet-campaigns/src/lib/sheets.ts`
 - `livesheet-campaigns/src/lib/supabase/server.ts`
 - `livesheet-campaigns/supabase/migrations/202604280001_initial_schema.sql`
 
@@ -177,8 +199,8 @@ npm run build
 
 Verification completed in this phase:
 
-- `npm run lint` passed on 2026-04-28 after Phase 3.
-- `npm run build` passed on 2026-04-28 after Phase 3.
+- `npm run lint` passed on 2026-04-28 after Phase 4.
+- `npm run build` passed on 2026-04-28 after Phase 4.
 - `supabase db push` applied
   `supabase/migrations/202604280001_initial_schema.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-28.
@@ -208,6 +230,10 @@ Manual checks after env and database setup:
 - Create a draft campaign with a Google Sheet URL and confirm the sheet ID is
   parsed on the campaign detail page.
 - Edit the campaign and confirm updates persist.
+- Confirm the campaign detail page validates the configured worksheet.
+- Confirm worksheet headers load and missing required columns are reported.
+- Save column mappings and confirm they persist after refresh.
+- Confirm the first 10 data rows appear in the preview table.
 - Use pause/resume and confirm the status changes.
 - Delete the campaign and confirm it disappears from the list.
 - Use `Disconnect` and confirm the connected account is removed.
@@ -215,7 +241,6 @@ Manual checks after env and database setup:
 
 ## Not Implemented Yet
 
-- Google Sheets access.
 - Gmail sending.
 - Template rendering.
 - Scheduler and cron routes.
@@ -225,5 +250,5 @@ Manual checks after env and database setup:
 
 ## Next Steps
 
-Phase 4 should implement Google Sheets integration only after Phase 3 review is
-complete.
+Phase 5 should implement sequence/template management only after Phase 4 review
+is complete.

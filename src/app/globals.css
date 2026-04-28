@@ -330,6 +330,10 @@ label {
   font-weight: 800;
 }
 
+.compact-details {
+  margin-top: 0.85rem;
+}
+
 .account-details dd {
   max-width: 680px;
   overflow-wrap: anywhere;
@@ -347,6 +351,12 @@ label {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
 
@@ -486,6 +496,23 @@ th {
   color: var(--muted);
 }
 
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.chip-list span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 55%);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.35rem 0.55rem;
+}
+
 @media (max-width: 760px) {
   .topbar,
   .topbar-actions,
@@ -501,7 +528,8 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .form-grid {
+  .form-grid,
+  .mapping-grid {
     grid-template-columns: 1fr;
   }
 
