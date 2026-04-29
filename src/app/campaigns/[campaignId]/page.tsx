@@ -23,6 +23,7 @@ const sheetMessages: Record<string, string> = {
   "mapping-saved": "Column mapping saved.",
   "missing-config": "Select a Google account, Sheet URL, and worksheet before validating.",
   "missing-columns": "Sheet validation found missing required columns.",
+  "validation-failed": "Sheet validation failed. Reconnect Google and try again if this continues.",
 };
 
 const sequenceMessages: Record<string, string> = {

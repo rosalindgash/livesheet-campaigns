@@ -11,6 +11,7 @@ import {
   saveCampaignColumnMapping,
   validateCampaignSheet,
   type CampaignColumnMapping,
+  type SheetValidationResult,
 } from "@/lib/sheets";
 
 export async function saveColumnMapping(formData: FormData) {
@@ -33,12 +34,19 @@ export async function validateSheetConfiguration(formData: FormData) {
     redirect(`/campaigns/${campaignId}?sheet=missing-config`);
   }
 
-  const result = await validateCampaignSheet({
-    googleAccountId: campaign.googleAccountId,
-    sheetId: campaign.sheetId,
-    worksheetName: campaign.worksheetName,
-    mapping,
-  });
+  let result: SheetValidationResult;
+
+  try {
+    result = await validateCampaignSheet({
+      googleAccountId: campaign.googleAccountId,
+      sheetId: campaign.sheetId,
+      worksheetName: campaign.worksheetName,
+      mapping,
+    });
+  } catch {
+    revalidateCampaign(campaignId);
+    redirect(`/campaigns/${campaignId}?sheet=validation-failed`);
+  }
 
   revalidateCampaign(campaignId);
 

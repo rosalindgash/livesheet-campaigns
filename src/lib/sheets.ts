@@ -1,4 +1,4 @@
-import { getValidGoogleAccessToken } from "@/lib/google/accounts";
+import { getValidGoogleAccessToken, refreshGoogleAccessToken } from "@/lib/google/accounts";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 export const COLUMN_MAPPING_FIELDS = [
@@ -78,6 +78,16 @@ type ValuesResponse = {
   };
 };
 
+class GoogleSheetsApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "GoogleSheetsApiError";
+  }
+}
+
 export async function getCampaignColumnMapping(
   campaignId: string,
 ): Promise<CampaignColumnMapping> {
@@ -134,6 +144,49 @@ export async function validateCampaignSheet({
   mapping: CampaignColumnMapping;
 }): Promise<SheetValidationResult> {
   const accessToken = await getValidGoogleAccessToken(googleAccountId);
+
+  try {
+    return await validateCampaignSheetWithToken({
+      accessToken,
+      mapping,
+      sheetId,
+      worksheetName,
+    });
+  } catch (error) {
+    if (!isGoogleAuthError(error)) {
+      throw error;
+    }
+
+    const refreshedAccessToken = await refreshGoogleAccessToken(googleAccountId);
+
+    try {
+      return await validateCampaignSheetWithToken({
+        accessToken: refreshedAccessToken,
+        mapping,
+        sheetId,
+        worksheetName,
+      });
+    } catch (retryError) {
+      if (isGoogleAuthError(retryError)) {
+        throw new Error("Google rejected the saved credentials. Reconnect Google and try again.");
+      }
+
+      throw retryError;
+    }
+  }
+}
+
+async function validateCampaignSheetWithToken({
+  accessToken,
+  sheetId,
+  worksheetName,
+  mapping,
+}: {
+  accessToken: string;
+  sheetId: string;
+  worksheetName: string;
+  mapping: CampaignColumnMapping;
+}): Promise<SheetValidationResult> {
   const spreadsheet = await fetchSpreadsheetMetadata(sheetId, accessToken);
 
   if (!spreadsheet.worksheets.includes(worksheetName)) {
@@ -258,10 +311,17 @@ async function fetchGoogleJson<T extends { error?: { message?: string } }>(
   const data = (await response.json()) as T;
 
   if (!response.ok || data.error) {
-    throw new Error(data.error?.message ?? "Google Sheets request failed.");
+    throw new GoogleSheetsApiError(
+      data.error?.message ?? "Google Sheets request failed.",
+      response.status,
+    );
   }
 
   return data;
+}
+
+function isGoogleAuthError(error: unknown): error is GoogleSheetsApiError {
+  return error instanceof GoogleSheetsApiError && (error.status === 401 || error.status === 403);
 }
 
 function normalizeHeaders(headers: string[]): string[] {

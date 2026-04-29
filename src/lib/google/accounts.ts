@@ -121,6 +121,13 @@ export async function getValidGoogleAccessToken(accountId: string): Promise<stri
   return refreshed.accessToken;
 }
 
+export async function refreshGoogleAccessToken(accountId: string): Promise<string> {
+  const account = await getGoogleAccountById(accountId);
+  const refreshed = await refreshStoredGoogleAccount(account);
+
+  return refreshed.accessToken;
+}
+
 export async function disconnectGoogleAccount(): Promise<void> {
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase.from("google_accounts").delete().neq("id", "00000000-0000-0000-0000-000000000000");
@@ -139,6 +146,23 @@ async function getGoogleAccountByEmail(email: string): Promise<GoogleAccountRow 
     )
     .eq("email", email)
     .maybeSingle<GoogleAccountRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+async function getGoogleAccountById(accountId: string): Promise<GoogleAccountRow> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("google_accounts")
+    .select(
+      "id, email, access_token_encrypted, refresh_token_encrypted, scope, token_expiry, created_at, updated_at",
+    )
+    .eq("id", accountId)
+    .single<GoogleAccountRow>();
 
   if (error) {
     throw error;
