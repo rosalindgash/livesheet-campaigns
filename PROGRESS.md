@@ -28,6 +28,10 @@ Status: complete and ready for review.
 
 Status: complete and ready for review.
 
+## Phase 6A - Minimal Unsubscribe Handling
+
+Status: complete; manual unsubscribe smoke test passed.
+
 ## Completed Work
 
 - Read `BUILD_SPEC.md` fully and created a 12-phase implementation plan.
@@ -147,8 +151,6 @@ Status: complete and ready for review.
   bulleted lists, numbered lists, and hyperlinks.
 - Added toolbar controls for bold, italic, bulleted list, numbered list,
   add/edit link, remove link, undo, and redo.
-- Added quick insert buttons for `{{first_name}}`, `{{organization}}`,
-  `{{state}}`, `{{e_transcript}}`, and `{{unsubscribe_url}}`.
 - Added the unsubscribe placeholder note near the body editor.
 - Added sanitization for saved and rendered HTML with an allowlist of `p`,
   `br`, `strong`, `b`, `em`, `i`, `ul`, `ol`, `li`, and `a`.
@@ -159,6 +161,27 @@ Status: complete and ready for review.
 - Kept Gmail sending, campaign execution, scheduled sending, status writeback,
   unsubscribe endpoint, suppression logic, and reply detection out of this
   editor upgrade.
+
+## Phase 6A Completed Work
+
+- Added `send_history.unsubscribe_token` with a secure database default and
+  unique index.
+- Added unsubscribe URL helpers and secure app-side token generation helper for
+  future send creation.
+- Added rendered body handling that fills `{{unsubscribe_url}}` when present.
+- Added automatic simple unsubscribe footer insertion when the template omits
+  `{{unsubscribe_url}}`.
+- Added `GET /unsubscribe/[token]` confirmation page.
+- Added `POST /api/unsubscribe/[token]` confirmation endpoint.
+- On confirmed unsubscribe, the app creates/upserts an `unsubscribe_events`
+  record, adds the recipient email to `suppression_list` with
+  `reason = unsubscribed`, associates `campaign_id` when available, and marks
+  the related `send_history` record as `unsubscribed`.
+- Added suppression-check helper for future Gmail send code so suppressed
+  recipients return a clear skipped status before any send.
+- Kept Gmail sending, campaign execution, scheduled sending, Google Sheet
+  writeback, reply detection, click/open tracking, and public SaaS features out
+  of Phase 6A.
 
 ## Changed Files
 
@@ -185,6 +208,8 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/app/api/google/auth/callback/route.ts`
 - `livesheet-campaigns/src/app/api/google/auth/start/route.ts`
 - `livesheet-campaigns/src/app/api/google/disconnect/route.ts`
+- `livesheet-campaigns/src/app/api/unsubscribe/[token]/route.ts`
+- `livesheet-campaigns/src/app/unsubscribe/[token]/page.tsx`
 - `livesheet-campaigns/src/app/globals.css`
 - `livesheet-campaigns/src/app/layout.tsx`
 - `livesheet-campaigns/src/app/login/actions.ts`
@@ -205,7 +230,9 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/lib/sequence-steps.ts`
 - `livesheet-campaigns/src/lib/supabase/server.ts`
 - `livesheet-campaigns/src/lib/templates.ts`
+- `livesheet-campaigns/src/lib/unsubscribe.ts`
 - `livesheet-campaigns/supabase/migrations/202604280001_initial_schema.sql`
+- `livesheet-campaigns/supabase/migrations/202604290001_unsubscribe_tokens.sql`
 
 ## Setup Instructions
 
@@ -276,8 +303,11 @@ npm run build
 
 Verification completed in this phase:
 
-- `npm run lint` passed on 2026-04-29 after the Phase 5.6 editor upgrade.
-- `npm run build` passed on 2026-04-29 after the Phase 5.6 editor upgrade.
+- `npm run lint` passed on 2026-04-29 after Phase 6A.
+- `npm run build` passed on 2026-04-29 after Phase 6A.
+- `supabase db push` applied
+  `supabase/migrations/202604290001_unsubscribe_tokens.sql` to the hosted
+  `livesheet-campaigns` Supabase project on 2026-04-29.
 - `supabase db push` applied
   `supabase/migrations/202604280001_initial_schema.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-28.
@@ -291,9 +321,16 @@ Verification completed in this phase:
   pages, and finalized route optimization.
 - Verified app routes in the build output:
   `/`, `/_not-found`, `/api/google/auth/callback`,
-  `/api/google/auth/start`, `/api/google/disconnect`, `/campaigns`,
-  `/campaigns/[campaignId]`, `/campaigns/[campaignId]/edit`,
-  `/campaigns/new`, `/dashboard`, `/login`, and `/logout`.
+  `/api/google/auth/start`, `/api/google/disconnect`,
+  `/api/unsubscribe/[token]`, `/campaigns`, `/campaigns/[campaignId]`,
+  `/campaigns/[campaignId]/edit`, `/campaigns/new`, `/dashboard`, `/login`,
+  `/logout`, and `/unsubscribe/[token]`.
+- Manual Phase 6A unsubscribe test passed on 2026-04-29:
+  created a test `send_history` row with an unsubscribe token, visited the
+  unsubscribe URL, confirmed unsubscribe, verified `unsubscribe_events` and
+  `suppression_list`, verified the related `send_history.status` changed to
+  `unsubscribed`, and confirmed suppression lookup returns a skipped status for
+  the suppressed recipient.
 
 Manual checks after env and database setup:
 
@@ -324,9 +361,14 @@ Manual checks after env and database setup:
   missing-column warnings still work.
 - Format a saved body template with paragraphs, bold, italic, bullets,
   numbered lists, and links.
-- Confirm quick placeholder insertion works in the body editor.
 - Confirm saved/rendered HTML remains basic and links open with safe target/rel
   behavior.
+- Confirm `{{unsubscribe_url}}` renders as an unsubscribe URL in preview/test
+  render helpers.
+- Confirm templates without `{{unsubscribe_url}}` receive a simple unsubscribe
+  footer in preview/test render helpers.
+- Visit a valid unsubscribe token URL, confirm unsubscribe, and verify
+  `unsubscribe_events`, `suppression_list`, and related `send_history` status.
 - Use pause/resume and confirm the status changes.
 - Delete the campaign and confirm it disappears from the list.
 - Use `Disconnect` and confirm the connected account is removed.
@@ -339,11 +381,10 @@ Manual checks after env and database setup:
 - Live row detection and writeback.
 - Campaign execution.
 - Follow-up execution logic.
-- Unsubscribe and suppression workflows.
 - Status writeback.
 - Reply detection.
 
 ## Next Steps
 
-Phase 6 should implement follow-up execution logic only after Phase 5.5 review
+Phase 6B should implement owner-only Gmail test sends only after Phase 6A review
 is complete.

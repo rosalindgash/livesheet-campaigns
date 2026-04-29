@@ -1,3 +1,5 @@
+import { sanitizeBasicEmailHtml } from "@/lib/html-sanitizer";
+
 export type TemplateContext = {
   values: Record<string, string>;
   availableColumns: string[];
@@ -13,6 +15,7 @@ const VARIABLE_PATTERN = /{{\s*(?!#if\b|else\b|\/if\b)([a-zA-Z_][\w.-]*)\s*}}/g;
 const IF_BLOCK_PATTERN =
   /{{#if\s+([a-zA-Z_][\w.-]*)\s*}}([\s\S]*?)(?:{{else}}([\s\S]*?))?{{\/if}}/g;
 const IF_VARIABLE_PATTERN = /{{#if\s+([a-zA-Z_][\w.-]*)\s*}}/g;
+const UNSUBSCRIBE_PLACEHOLDER = "{{unsubscribe_url}}";
 
 export function buildTemplateContext(headers: string[], row: string[]): TemplateContext {
   const values: Record<string, string> = {};
@@ -48,6 +51,34 @@ export function renderTemplate(template: string, context: TemplateContext): Temp
     output,
     missingColumns,
     referencedColumns,
+  };
+}
+
+export function renderTemplateBodyWithUnsubscribe({
+  bodyTemplate,
+  context,
+  unsubscribeUrl,
+}: {
+  bodyTemplate: string;
+  context: TemplateContext;
+  unsubscribeUrl: string;
+}): TemplateRenderResult {
+  const contextWithUnsubscribe = {
+    ...context,
+    values: {
+      ...context.values,
+      unsubscribe_url: unsubscribeUrl,
+    },
+    availableColumns: [...new Set([...context.availableColumns, "unsubscribe_url"])],
+  };
+  const rendered = renderTemplate(bodyTemplate, contextWithUnsubscribe);
+  const output = templateContainsUnsubscribePlaceholder(bodyTemplate)
+    ? rendered.output
+    : `${rendered.output}${buildUnsubscribeFooter(unsubscribeUrl)}`;
+
+  return {
+    ...rendered,
+    output: sanitizeBasicEmailHtml(output),
   };
 }
 
@@ -127,4 +158,16 @@ function unwrapConditionalControlParagraphs(template: string): string {
     .replace(/<p>\s*({{#if\s+[a-zA-Z_][\w.-]*\s*}})\s*<\/p>/g, "$1")
     .replace(/<p>\s*({{else}})\s*<\/p>/g, "$1")
     .replace(/<p>\s*({{\/if}})\s*<\/p>/g, "$1");
+}
+
+function buildUnsubscribeFooter(unsubscribeUrl: string): string {
+  return `<p><a href="${escapeAttribute(unsubscribeUrl)}" target="_blank" rel="noopener noreferrer">Unsubscribe</a></p>`;
+}
+
+function templateContainsUnsubscribePlaceholder(template: string): boolean {
+  return template.includes(UNSUBSCRIBE_PLACEHOLDER);
+}
+
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }

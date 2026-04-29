@@ -3,7 +3,11 @@
 import { useMemo, useState } from "react";
 
 import { sanitizeBasicEmailHtml } from "@/lib/html-sanitizer";
-import { buildTemplateContext, renderTemplate } from "@/lib/templates";
+import {
+  buildTemplateContext,
+  renderTemplate,
+  renderTemplateBodyWithUnsubscribe,
+} from "@/lib/templates";
 
 type SequenceTemplatePreviewProps = {
   bodyTemplate: string;
@@ -28,7 +32,15 @@ export function SequenceTemplatePreview({
     () => renderTemplate(subjectTemplate, context),
     [context, subjectTemplate],
   );
-  const body = useMemo(() => renderTemplate(bodyTemplate, context), [bodyTemplate, context]);
+  const body = useMemo(
+    () =>
+      renderTemplateBodyWithUnsubscribe({
+        bodyTemplate,
+        context,
+        unsubscribeUrl: "https://example.com/unsubscribe/preview-token",
+      }),
+    [bodyTemplate, context],
+  );
   const renderedBodyHtml = useMemo(() => sanitizeBasicEmailHtml(body.output), [body.output]);
   const missingColumns = Array.from(new Set([...subject.missingColumns, ...body.missingColumns]));
 

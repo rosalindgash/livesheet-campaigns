@@ -7,9 +7,9 @@ validation, worksheet/header checks, row preview, column mapping, and
 non-sending saved message template management with a basic HTML body editor and
 preview rendering.
 
-Gmail sending, campaign execution, scheduled sending, unsubscribe, suppression
-logic, status writeback, and reply detection are intentionally not implemented
-yet.
+Gmail sending, campaign execution, scheduled sending, Google Sheet writeback,
+reply detection, click/open tracking, and public SaaS features are intentionally
+not implemented yet.
 
 ## Local Setup
 
@@ -82,7 +82,8 @@ delete draft campaign records. Open a campaign detail page to validate the
 configured Google Sheet, preview rows, save column mappings, and preview
 rendered templates against selected Sheet rows. Saved message templates support
 up to three touches per campaign. Body templates support basic sanitized HTML,
-but the app does not send or schedule email yet.
+but the app does not send or schedule email yet. Minimal unsubscribe links and
+global suppression records are in place for future sends.
 
 ## Verification
 
