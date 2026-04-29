@@ -3,6 +3,7 @@ import Link from "next/link";
 import { deleteCampaign, pauseCampaign, resumeCampaign } from "@/app/campaigns/actions";
 import { requireOwnerSession } from "@/lib/auth";
 import { getCampaign, type Campaign } from "@/lib/campaigns";
+import { listSequenceSteps, type SequenceStep } from "@/lib/sequence-steps";
 import {
   COLUMN_MAPPING_FIELDS,
   getCampaignColumnMapping,
@@ -11,7 +12,10 @@ import {
   type SheetValidationResult,
 } from "@/lib/sheets";
 
+import { BodyTemplateEditor } from "./BodyTemplateEditor";
+import { SequenceTemplatePreview } from "./SequenceTemplatePreview";
 import { TemplatePreview } from "./TemplatePreview";
+import { deleteSequenceTemplate, saveSequenceTemplate } from "./sequence-actions";
 import { saveColumnMapping, validateSheetConfiguration } from "./sheet-actions";
 
 const sheetMessages: Record<string, string> = {
@@ -21,22 +25,29 @@ const sheetMessages: Record<string, string> = {
   "missing-columns": "Sheet validation found missing required columns.",
 };
 
+const sequenceMessages: Record<string, string> = {
+  saved: "Message template saved.",
+  deleted: "Message template deleted.",
+};
+
 export default async function CampaignDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ campaignId: string }>;
-  searchParams: Promise<{ sheet?: string }>;
+  searchParams: Promise<{ sequence?: string; sheet?: string }>;
 }) {
   await requireOwnerSession();
   const { campaignId } = await params;
   const query = await searchParams;
-  const [campaign, mapping] = await Promise.all([
+  const [campaign, mapping, sequenceSteps] = await Promise.all([
     getCampaign(campaignId),
     getCampaignColumnMapping(campaignId),
+    listSequenceSteps(campaignId),
   ]);
   const validation = await loadSheetValidation(campaign, mapping);
   const sheetMessage = query.sheet ? sheetMessages[query.sheet] : null;
+  const sequenceMessage = query.sequence ? sequenceMessages[query.sequence] : null;
 
   return (
     <main className="app-shell">
@@ -229,6 +240,26 @@ export default async function CampaignDetailPage({
       </section>
 
       <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Saved templates</p>
+            <h2>Message touches</h2>
+          </div>
+        </div>
+        {sequenceMessage ? <div className="notice">{sequenceMessage}</div> : null}
+        <div className="sequence-grid">
+          {sequenceSteps.map((step) => (
+            <SequenceTemplateCard
+              headers={validation.headers}
+              key={step.stepNumber}
+              rows={validation.previewRows}
+              step={step}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="panel">
         <div className="row-actions">
           {campaign.status === "active" ? (
             <form action={pauseCampaign}>
@@ -250,6 +281,98 @@ export default async function CampaignDetailPage({
         </div>
       </section>
     </main>
+  );
+}
+
+function SequenceTemplateCard({
+  headers,
+  rows,
+  step,
+}: {
+  headers: string[];
+  rows: string[][];
+  step: SequenceStep;
+}) {
+  return (
+    <article className="sequence-card">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Step {step.stepNumber}</p>
+          <h3>{step.name}</h3>
+        </div>
+        <span className={step.isActive ? "status-pill active" : "status-pill paused"}>
+          {step.isActive ? "Active" : "Inactive"}
+        </span>
+      </div>
+
+      <form action={saveSequenceTemplate} className="sequence-form">
+        <input name="campaignId" type="hidden" value={step.campaignId} />
+        <input name="stepNumber" type="hidden" value={step.stepNumber} />
+
+        <label className="field">
+          <span>Name</span>
+          <input name="name" required defaultValue={step.name} />
+        </label>
+
+        <label className="field">
+          <span>Delay days after previous step</span>
+          <input
+            name="delayDaysAfterPreviousStep"
+            min={0}
+            required
+            step={1}
+            type="number"
+            defaultValue={step.delayDaysAfterPreviousStep}
+          />
+        </label>
+
+        <label className="field">
+          <span>Stage required</span>
+          <input name="stageRequired" required defaultValue={step.stageRequired} />
+        </label>
+
+        <label className="field">
+          <span>Stage after send</span>
+          <input name="stageAfterSend" required defaultValue={step.stageAfterSend} />
+        </label>
+
+        <label className="field checkbox-field">
+          <input name="isActive" type="checkbox" defaultChecked={step.isActive} />
+          <span>Active</span>
+        </label>
+
+        <label className="field full">
+          <span>Subject template</span>
+          <input name="subjectTemplate" required defaultValue={step.subjectTemplate} />
+        </label>
+
+        <label className="field full">
+          <span>Body template</span>
+          <BodyTemplateEditor initialHtml={step.bodyTemplate} inputName="bodyTemplate" />
+        </label>
+
+        <div className="form-actions full">
+          <button type="submit">Save step {step.stepNumber}</button>
+        </div>
+      </form>
+
+      <SequenceTemplatePreview
+        bodyTemplate={step.bodyTemplate}
+        headers={headers}
+        rows={rows}
+        subjectTemplate={step.subjectTemplate}
+      />
+
+      {step.id ? (
+        <form action={deleteSequenceTemplate} className="delete-template-form">
+          <input name="campaignId" type="hidden" value={step.campaignId} />
+          <input name="stepNumber" type="hidden" value={step.stepNumber} />
+          <button className="danger-button small-button" type="submit">
+            Delete template
+          </button>
+        </form>
+      ) : null}
+    </article>
   );
 }
 

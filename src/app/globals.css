@@ -519,6 +519,115 @@ th {
   gap: 1rem;
 }
 
+.sequence-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.sequence-card {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 42%);
+  padding: 1rem;
+}
+
+.sequence-form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.checkbox-field {
+  align-items: center;
+  flex-direction: row;
+}
+
+.checkbox-field input {
+  width: auto;
+}
+
+.delete-template-form {
+  margin-top: 1rem;
+}
+
+.body-editor-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.editor-toolbar button {
+  align-items: center;
+  background: rgb(255 255 255 / 70%);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--accent);
+  display: inline-flex;
+  font-size: 0.82rem;
+  height: 2.1rem;
+  justify-content: center;
+  padding: 0;
+  width: 2.1rem;
+}
+
+.editor-toolbar button:hover {
+  background: var(--panel-strong);
+}
+
+.body-editor {
+  min-height: 12rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: white;
+  font-weight: 400;
+  line-height: 1.35;
+  padding: 0.9rem 1rem;
+}
+
+.body-editor:focus {
+  outline: 2px solid rgb(40 95 72 / 22%);
+}
+
+.rendered-html {
+  line-height: 1.35;
+}
+
+.body-editor p {
+  margin: 0;
+}
+
+.rendered-html p {
+  margin: 0;
+}
+
+.body-editor ul,
+.body-editor ol {
+  margin: 0 0 0 1.25rem;
+}
+
+.rendered-html ul,
+.rendered-html ol {
+  margin: 0 0 0 1.25rem;
+}
+
+.body-editor a,
+.rendered-html a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.editor-note {
+  font-size: 0.9rem;
+  margin-top: 0;
+}
+
 .template-editor,
 .template-rendered {
   display: flex;
@@ -541,7 +650,7 @@ th {
 .render-card pre {
   color: var(--foreground);
   font-family: inherit;
-  line-height: 1.6;
+  line-height: 1.35;
   margin-top: 0.6rem;
   white-space: pre-wrap;
 }
@@ -563,6 +672,7 @@ th {
 
   .form-grid,
   .mapping-grid,
+  .sequence-form,
   .template-preview-grid {
     grid-template-columns: 1fr;
   }

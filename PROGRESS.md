@@ -18,6 +18,14 @@ Status: complete; manual smoke test passed.
 
 ## Phase 5 - Template Rendering Preview
 
+Status: complete; manual smoke test passed.
+
+## Phase 5.5 - Saved Message Templates
+
+Status: complete and ready for review.
+
+## Phase 5.6 - Basic HTML Body Editor
+
 Status: complete and ready for review.
 
 ## Completed Work
@@ -112,11 +120,53 @@ Status: complete and ready for review.
 - Kept Gmail sending, campaign execution, scheduling cron, sequences,
   unsubscribe, status writeback, and reply detection out of Phase 5.
 
+## Phase 5.5 Completed Work
+
+- Added saved campaign-level message template management using the existing
+  `sequence_steps` table.
+- Added a sequence-step model/helper for steps 1, 2, and 3 only.
+- Added save and delete server actions for saved message templates.
+- Added default stage and delay values for Touch 1, Touch 2, and Touch 3.
+- Added campaign detail UI to create, edit, delete, and mark templates
+  active/inactive.
+- Added fields for `step_number`, `name`, `subject_template`, `body_template`,
+  `delay_days_after_previous_step`, `stage_required`, `stage_after_send`, and
+  `is_active`.
+- Added per-template non-sending preview using the existing Sheet row template
+  renderer.
+- Added missing-column warnings for each saved template preview.
+- Kept Gmail sending, campaign execution, scheduled sending, status writeback,
+  unsubscribe endpoint, suppression logic, and reply detection out of
+  Phase 5.5.
+
+## Phase 5.6 Completed Work
+
+- Replaced saved message body template textareas with a lightweight WYSIWYG
+  editor while keeping subject templates as single-line plain text.
+- Added body editor support for paragraphs, line breaks, bold, italic,
+  bulleted lists, numbered lists, and hyperlinks.
+- Added toolbar controls for bold, italic, bulleted list, numbered list,
+  add/edit link, remove link, undo, and redo.
+- Added quick insert buttons for `{{first_name}}`, `{{organization}}`,
+  `{{state}}`, `{{e_transcript}}`, and `{{unsubscribe_url}}`.
+- Added the unsubscribe placeholder note near the body editor.
+- Added sanitization for saved and rendered HTML with an allowlist of `p`,
+  `br`, `strong`, `b`, `em`, `i`, `ul`, `ol`, `li`, and `a`.
+- Restricted link attributes to `href`, `target`, and `rel`, and force rendered
+  links to `target="_blank"` and `rel="noopener noreferrer"`.
+- Updated saved-template previews to render processed HTML safely after
+  variable substitution and conditional rendering.
+- Kept Gmail sending, campaign execution, scheduled sending, status writeback,
+  unsubscribe endpoint, suppression logic, and reply detection out of this
+  editor upgrade.
+
 ## Changed Files
 
 - `livesheet-campaigns/.env.example`
 - `livesheet-campaigns/.gitignore`
 - `livesheet-campaigns/README.md`
+- `livesheet-campaigns/package-lock.json`
+- `livesheet-campaigns/package.json`
 - `livesheet-campaigns/package-lock.json`
 - `livesheet-campaigns/package.json`
 - `livesheet-campaigns/scripts/generate-password-hash.mjs`
@@ -127,7 +177,10 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/app/campaigns/page.tsx`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/edit/page.tsx`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/page.tsx`
+- `livesheet-campaigns/src/app/campaigns/[campaignId]/BodyTemplateEditor.tsx`
+- `livesheet-campaigns/src/app/campaigns/[campaignId]/SequenceTemplatePreview.tsx`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/TemplatePreview.tsx`
+- `livesheet-campaigns/src/app/campaigns/[campaignId]/sequence-actions.ts`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/sheet-actions.ts`
 - `livesheet-campaigns/src/app/api/google/auth/callback/route.ts`
 - `livesheet-campaigns/src/app/api/google/auth/start/route.ts`
@@ -147,7 +200,9 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/lib/google/accounts.ts`
 - `livesheet-campaigns/src/lib/google/oauth.ts`
 - `livesheet-campaigns/src/lib/google/state.ts`
+- `livesheet-campaigns/src/lib/html-sanitizer.ts`
 - `livesheet-campaigns/src/lib/sheets.ts`
+- `livesheet-campaigns/src/lib/sequence-steps.ts`
 - `livesheet-campaigns/src/lib/supabase/server.ts`
 - `livesheet-campaigns/src/lib/templates.ts`
 - `livesheet-campaigns/supabase/migrations/202604280001_initial_schema.sql`
@@ -221,8 +276,8 @@ npm run build
 
 Verification completed in this phase:
 
-- `npm run lint` passed on 2026-04-29 after Phase 5.
-- `npm run build` passed on 2026-04-29 after Phase 5.
+- `npm run lint` passed on 2026-04-29 after the Phase 5.6 editor upgrade.
+- `npm run build` passed on 2026-04-29 after the Phase 5.6 editor upgrade.
 - `supabase db push` applied
   `supabase/migrations/202604280001_initial_schema.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-28.
@@ -261,6 +316,17 @@ Manual checks after env and database setup:
 - Test a conditional block such as
   `{{#if e_transcript}}Has e-transcript{{else}}No e-transcript{{/if}}`.
 - Reference a missing column and confirm a warning appears.
+- Create or edit saved message templates for steps 1, 2, and 3.
+- Confirm default stage and delay values match the expected touch defaults.
+- Mark a template inactive and confirm the status pill changes.
+- Delete a saved template and confirm the default empty touch slot returns.
+- Preview each saved template against a selected Sheet row and confirm
+  missing-column warnings still work.
+- Format a saved body template with paragraphs, bold, italic, bullets,
+  numbered lists, and links.
+- Confirm quick placeholder insertion works in the body editor.
+- Confirm saved/rendered HTML remains basic and links open with safe target/rel
+  behavior.
 - Use pause/resume and confirm the status changes.
 - Delete the campaign and confirm it disappears from the list.
 - Use `Disconnect` and confirm the connected account is removed.
@@ -272,12 +338,12 @@ Manual checks after env and database setup:
 - Scheduler and cron routes.
 - Live row detection and writeback.
 - Campaign execution.
-- Sequences.
+- Follow-up execution logic.
 - Unsubscribe and suppression workflows.
 - Status writeback.
 - Reply detection.
 
 ## Next Steps
 
-Phase 6 should implement sequence management only after Phase 5 review is
-complete.
+Phase 6 should implement follow-up execution logic only after Phase 5.5 review
+is complete.

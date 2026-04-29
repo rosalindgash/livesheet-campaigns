@@ -36,9 +36,10 @@ export function buildTemplateContext(headers: string[], row: string[]): Template
 }
 
 export function renderTemplate(template: string, context: TemplateContext): TemplateRenderResult {
-  const referencedColumns = getReferencedColumns(template);
+  const normalizedTemplate = unwrapConditionalControlParagraphs(template);
+  const referencedColumns = getReferencedColumns(normalizedTemplate);
   const missingColumns = referencedColumns.filter((column) => !hasColumn(column, context));
-  const withConditionals = renderConditionals(template, context);
+  const withConditionals = renderConditionals(normalizedTemplate, context);
   const output = withConditionals.replace(VARIABLE_PATTERN, (_, rawName: string) => {
     return resolveValue(rawName, context) ?? "";
   });
@@ -119,4 +120,11 @@ function isTruthy(value: string | null): boolean {
   const normalized = value.trim().toLowerCase();
 
   return normalized.length > 0 && normalized !== "false" && normalized !== "0" && normalized !== "no";
+}
+
+function unwrapConditionalControlParagraphs(template: string): string {
+  return template
+    .replace(/<p>\s*({{#if\s+[a-zA-Z_][\w.-]*\s*}})\s*<\/p>/g, "$1")
+    .replace(/<p>\s*({{else}})\s*<\/p>/g, "$1")
+    .replace(/<p>\s*({{\/if}})\s*<\/p>/g, "$1");
 }
