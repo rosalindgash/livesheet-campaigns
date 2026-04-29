@@ -32,6 +32,10 @@ Status: complete and ready for review.
 
 Status: complete; manual unsubscribe smoke test passed.
 
+## Phase 6 - Owner-Only Gmail Test Sends
+
+Status: complete and ready for review.
+
 ## Completed Work
 
 - Read `BUILD_SPEC.md` fully and created a 12-phase implementation plan.
@@ -183,6 +187,28 @@ Status: complete; manual unsubscribe smoke test passed.
   writeback, reply detection, click/open tracking, and public SaaS features out
   of Phase 6A.
 
+## Phase 6 Completed Work
+
+- Added Gmail API sending through the connected Google account using the stored
+  OAuth token with a forced refresh retry on Gmail auth failures.
+- Added an owner-only test-send flow on each saved message template card.
+- Test sends render a selected saved template against a selected Google Sheet
+  preview row, but send only to `APP_OWNER_EMAIL` or an explicitly confirmed
+  owner-controlled test inbox.
+- Added guardrails so the test-send flow never uses Sheet recipient emails as
+  Gmail recipients.
+- Added global suppression checks before any Gmail test send. Suppressed
+  recipients are not sent to and are recorded as skipped.
+- Integrated existing unsubscribe rendering helpers so `{{unsubscribe_url}}` is
+  filled when present, or a simple unsubscribe footer is appended when omitted.
+- Added `send_history.send_type` with a `test` marker for owner test sends.
+- Persisted test send history with campaign ID, sequence step ID, test marker,
+  recipient snapshot, rendered subject/body, unsubscribe token, Gmail message
+  ID/thread ID when sent, status, timestamps, and failure/skipped messages.
+- Kept campaign execution, scheduled sending, live row status writeback,
+  multi-touch sequence execution, cron, reply detection, click/open tracking,
+  and real prospect sending out of Phase 6.
+
 ## Changed Files
 
 - `livesheet-campaigns/.env.example`
@@ -205,6 +231,7 @@ Status: complete; manual unsubscribe smoke test passed.
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/TemplatePreview.tsx`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/sequence-actions.ts`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/sheet-actions.ts`
+- `livesheet-campaigns/src/app/campaigns/[campaignId]/test-send-actions.ts`
 - `livesheet-campaigns/src/app/api/google/auth/callback/route.ts`
 - `livesheet-campaigns/src/app/api/google/auth/start/route.ts`
 - `livesheet-campaigns/src/app/api/google/disconnect/route.ts`
@@ -223,6 +250,7 @@ Status: complete; manual unsubscribe smoke test passed.
 - `livesheet-campaigns/src/lib/dashboard-data.ts`
 - `livesheet-campaigns/src/lib/env.ts`
 - `livesheet-campaigns/src/lib/google/accounts.ts`
+- `livesheet-campaigns/src/lib/google/gmail.ts`
 - `livesheet-campaigns/src/lib/google/oauth.ts`
 - `livesheet-campaigns/src/lib/google/state.ts`
 - `livesheet-campaigns/src/lib/html-sanitizer.ts`
@@ -233,6 +261,7 @@ Status: complete; manual unsubscribe smoke test passed.
 - `livesheet-campaigns/src/lib/unsubscribe.ts`
 - `livesheet-campaigns/supabase/migrations/202604280001_initial_schema.sql`
 - `livesheet-campaigns/supabase/migrations/202604290001_unsubscribe_tokens.sql`
+- `livesheet-campaigns/supabase/migrations/202604290002_send_history_test_marker.sql`
 
 ## Setup Instructions
 
@@ -305,9 +334,16 @@ Verification completed in this phase:
 
 - `npm run lint` passed on 2026-04-29 after Phase 6A.
 - `npm run build` passed on 2026-04-29 after Phase 6A.
+- `npm run lint` passed on 2026-04-29 after Phase 6.
+- `npm run build` passed on 2026-04-29 after Phase 6.
 - `supabase db push` applied
   `supabase/migrations/202604290001_unsubscribe_tokens.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-29.
+- `supabase db push` applied
+  `supabase/migrations/202604290002_send_history_test_marker.sql` to the hosted
+  `livesheet-campaigns` Supabase project on 2026-04-29.
+- Verified `send_history.send_type` is reachable through the service role
+  client.
 - `supabase db push` applied
   `supabase/migrations/202604280001_initial_schema.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-28.
@@ -369,6 +405,17 @@ Manual checks after env and database setup:
   footer in preview/test render helpers.
 - Visit a valid unsubscribe token URL, confirm unsubscribe, and verify
   `unsubscribe_events`, `suppression_list`, and related `send_history` status.
+- Send a test email from a saved template to `APP_OWNER_EMAIL`.
+- Confirm the delivered email uses the selected Sheet preview row values.
+- Confirm the delivered email includes either the rendered `{{unsubscribe_url}}`
+  or the automatic unsubscribe footer.
+- Confirm Supabase records the test send in `send_history` with
+  `send_type = test`, status `sent`, rendered subject/body, recipient snapshot,
+  unsubscribe token, Gmail message ID, and Gmail thread ID.
+- Send a test to a suppressed test address and confirm no Gmail email is sent
+  and `send_history.status = skipped`.
+- Enter a non-owner test recipient without checking the owner-controlled
+  confirmation box and confirm the app blocks the send.
 - Use pause/resume and confirm the status changes.
 - Delete the campaign and confirm it disappears from the list.
 - Use `Disconnect` and confirm the connected account is removed.
@@ -386,5 +433,5 @@ Manual checks after env and database setup:
 
 ## Next Steps
 
-Phase 6B should implement owner-only Gmail test sends only after Phase 6A review
+Phase 7 should implement controlled campaign execution only after Phase 6 review
 is complete.

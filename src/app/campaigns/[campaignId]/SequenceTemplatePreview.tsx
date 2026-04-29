@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 
-import { sanitizeBasicEmailHtml } from "@/lib/html-sanitizer";
 import {
   buildTemplateContext,
   renderTemplate,
@@ -41,7 +40,6 @@ export function SequenceTemplatePreview({
       }),
     [bodyTemplate, context],
   );
-  const renderedBodyHtml = useMemo(() => sanitizeBasicEmailHtml(body.output), [body.output]);
   const missingColumns = Array.from(new Set([...subject.missingColumns, ...body.missingColumns]));
 
   if (headers.length === 0 || rows.length === 0) {
@@ -75,10 +73,10 @@ export function SequenceTemplatePreview({
 
       <div className="render-card">
         <p className="eyebrow">Rendered body</p>
-        {renderedBodyHtml ? (
+        {body.output ? (
           <div
             className="rendered-html"
-            dangerouslySetInnerHTML={{ __html: renderedBodyHtml }}
+            dangerouslySetInnerHTML={{ __html: body.output }}
           />
         ) : (
           <p className="muted">No body template saved yet.</p>

@@ -14,9 +14,9 @@ import {
 
 import { BodyTemplateEditor } from "./BodyTemplateEditor";
 import { SequenceTemplatePreview } from "./SequenceTemplatePreview";
-import { TemplatePreview } from "./TemplatePreview";
 import { deleteSequenceTemplate, saveSequenceTemplate } from "./sequence-actions";
 import { saveColumnMapping, validateSheetConfiguration } from "./sheet-actions";
+import { sendOwnerTestEmail } from "./test-send-actions";
 
 const sheetMessages: Record<string, string> = {
   validated: "Sheet validation passed.",
@@ -31,12 +31,25 @@ const sequenceMessages: Record<string, string> = {
   deleted: "Message template deleted.",
 };
 
+const testSendMessages: Record<string, string> = {
+  failed: "Test email failed. A failed send history row was recorded.",
+  "invalid-recipient": "Enter a valid test recipient email address.",
+  "missing-columns": "Test email was not sent because the template references missing columns. A skipped send history row was recorded.",
+  "missing-config": "Select a Google account, Sheet URL, and worksheet before sending a test.",
+  "missing-row": "Select a valid Sheet preview row before sending a test.",
+  "missing-template": "Save a subject and body template before sending a test.",
+  "owner-confirmation-required": "For non-owner test addresses, confirm the inbox is owner-controlled.",
+  sent: "Test email sent and recorded in send history.",
+  "sheet-invalid": "Validate the Sheet and load preview rows before sending a test.",
+  skipped: "Test email was skipped because the recipient is suppressed. A skipped send history row was recorded.",
+};
+
 export default async function CampaignDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ campaignId: string }>;
-  searchParams: Promise<{ sequence?: string; sheet?: string }>;
+  searchParams: Promise<{ sequence?: string; sheet?: string; testSend?: string }>;
 }) {
   await requireOwnerSession();
   const { campaignId } = await params;
@@ -49,6 +62,8 @@ export default async function CampaignDetailPage({
   const validation = await loadSheetValidation(campaign, mapping);
   const sheetMessage = query.sheet ? sheetMessages[query.sheet] : null;
   const sequenceMessage = query.sequence ? sequenceMessages[query.sequence] : null;
+  const testSendMessage = query.testSend ? testSendMessages[query.testSend] : null;
+  const ownerEmail = process.env.APP_OWNER_EMAIL ?? "";
 
   return (
     <main className="app-shell">
@@ -233,26 +248,18 @@ export default async function CampaignDetailPage({
       <section className="panel">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Template preview</p>
-            <h2>Render with selected row</h2>
-          </div>
-        </div>
-        <TemplatePreview headers={validation.headers} rows={validation.previewRows} />
-      </section>
-
-      <section className="panel">
-        <div className="section-heading">
-          <div>
             <p className="eyebrow">Saved templates</p>
             <h2>Message touches</h2>
           </div>
         </div>
         {sequenceMessage ? <div className="notice">{sequenceMessage}</div> : null}
+        {testSendMessage ? <div className="notice">{testSendMessage}</div> : null}
         <div className="sequence-grid">
           {sequenceSteps.map((step) => (
             <SequenceTemplateCard
               headers={validation.headers}
               key={step.stepNumber}
+              ownerEmail={ownerEmail}
               rows={validation.previewRows}
               step={step}
             />
@@ -287,13 +294,19 @@ export default async function CampaignDetailPage({
 
 function SequenceTemplateCard({
   headers,
+  ownerEmail,
   rows,
   step,
 }: {
   headers: string[];
+  ownerEmail: string;
   rows: string[][];
   step: SequenceStep;
 }) {
+  const canSendTest = Boolean(
+    step.id && step.subjectTemplate.trim() && step.bodyTemplate.trim() && rows.length > 0,
+  );
+
   return (
     <article className="sequence-card">
       <div className="section-heading">
@@ -364,6 +377,50 @@ function SequenceTemplateCard({
         subjectTemplate={step.subjectTemplate}
       />
 
+      <form action={sendOwnerTestEmail} className="test-send-form">
+        <input name="campaignId" type="hidden" value={step.campaignId} />
+        <input name="sequenceStepNumber" type="hidden" value={step.stepNumber} />
+
+        <div className="test-send-grid">
+          <label className="field">
+            <span>Test row</span>
+            <select name="previewRowIndex" required defaultValue="0">
+              {rows.map((row, index) => (
+                <option key={index} value={index}>
+                  Row {index + 2}: {getRowLabel(headers, row)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Test recipient</span>
+            <input
+              name="testRecipientEmail"
+              required
+              type="email"
+              defaultValue={ownerEmail}
+              placeholder={ownerEmail || "owner@example.com"}
+            />
+          </label>
+        </div>
+
+        <label className="field checkbox-field">
+          <input name="confirmOwnerControlled" type="checkbox" />
+          <span>This non-owner test inbox is owner-controlled</span>
+        </label>
+
+        <p className="muted">
+          Test sends render the selected row but send only to the test recipient above.
+        </p>
+
+        <div className="form-actions">
+          <button disabled={!canSendTest} type="submit">
+            Send test email
+          </button>
+        </div>
+      </form>
+
       {step.id ? (
         <form action={deleteSequenceTemplate} className="delete-template-form">
           <input name="campaignId" type="hidden" value={step.campaignId} />
@@ -421,6 +478,16 @@ function getHeaderOptions(headers: string[], selectedHeader: string | null): str
   }
 
   return Array.from(options);
+}
+
+function getRowLabel(headers: string[], row: string[]): string {
+  const emailIndex = headers.findIndex((header) => header.trim().toLowerCase() === "email");
+  const firstNameIndex = headers.findIndex((header) =>
+    ["first_name", "first name", "firstname"].includes(header.trim().toLowerCase()),
+  );
+  const labelParts = [row[firstNameIndex], row[emailIndex]].filter(Boolean);
+
+  return labelParts.length > 0 ? labelParts.join(" / ") : "Preview data";
 }
 
 function Detail({ label, value }: { label: string; value: string }) {

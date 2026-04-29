@@ -513,12 +513,6 @@ th {
   padding: 0.35rem 0.55rem;
 }
 
-.template-preview-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1rem;
-}
-
 .sequence-grid {
   display: grid;
   gap: 1rem;
@@ -549,6 +543,21 @@ th {
 
 .delete-template-form {
   margin-top: 1rem;
+}
+
+.test-send-form {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.test-send-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
 }
 
 .body-editor-shell {
@@ -673,7 +682,7 @@ th {
   .form-grid,
   .mapping-grid,
   .sequence-form,
-  .template-preview-grid {
+  .test-send-grid {
     grid-template-columns: 1fr;
   }
 

@@ -1,15 +1,17 @@
 # LiveSheet Campaigns
 
-Single-user Google Sheets and Gmail outreach sequencer. Phase 5.6 contains the
+Single-user Google Sheets and Gmail outreach sequencer. Phase 6 contains the
 app foundation, Google OAuth connection, encrypted token storage, token refresh
 handling, connected account display, disconnect, campaign CRUD, Google Sheets
 validation, worksheet/header checks, row preview, column mapping, and
 non-sending saved message template management with a basic HTML body editor and
-preview rendering.
+preview rendering. It also includes owner-only Gmail test sends that render a
+saved template against a selected Sheet preview row, apply unsubscribe-link
+handling, check global suppression before sending, and persist test send history.
 
-Gmail sending, campaign execution, scheduled sending, Google Sheet writeback,
-reply detection, click/open tracking, and public SaaS features are intentionally
-not implemented yet.
+Campaign execution, scheduled sending, real prospect sending, Google Sheet
+writeback, multi-touch sequence execution, reply detection, click/open tracking,
+and public SaaS features are intentionally not implemented yet.
 
 ## Local Setup
 
@@ -82,8 +84,9 @@ delete draft campaign records. Open a campaign detail page to validate the
 configured Google Sheet, preview rows, save column mappings, and preview
 rendered templates against selected Sheet rows. Saved message templates support
 up to three touches per campaign. Body templates support basic sanitized HTML,
-but the app does not send or schedule email yet. Minimal unsubscribe links and
-global suppression records are in place for future sends.
+and owner-only test sends can send a rendered template to `APP_OWNER_EMAIL` or
+an explicitly confirmed owner-controlled test inbox. Minimal unsubscribe links
+and global suppression records are enforced before test sends.
 
 ## Verification
 

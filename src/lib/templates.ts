@@ -1,4 +1,4 @@
-import { sanitizeBasicEmailHtml } from "@/lib/html-sanitizer";
+import { normalizeBasicEmailHtml } from "@/lib/html-sanitizer";
 
 export type TemplateContext = {
   values: Record<string, string>;
@@ -78,7 +78,7 @@ export function renderTemplateBodyWithUnsubscribe({
 
   return {
     ...rendered,
-    output: sanitizeBasicEmailHtml(output),
+    output: normalizeBasicEmailHtml(output),
   };
 }
 
