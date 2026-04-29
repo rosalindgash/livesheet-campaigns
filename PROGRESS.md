@@ -423,7 +423,7 @@ Manual checks after env and database setup:
 
 ## Not Implemented Yet
 
-- Gmail sending.
+- Real prospect Gmail sending outside the owner-only test-send flow.
 - Scheduler and cron routes.
 - Live row detection and writeback.
 - Campaign execution.
