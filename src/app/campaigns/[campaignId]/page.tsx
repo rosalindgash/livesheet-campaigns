@@ -11,6 +11,7 @@ import {
   type SheetValidationResult,
 } from "@/lib/sheets";
 
+import { TemplatePreview } from "./TemplatePreview";
 import { saveColumnMapping, validateSheetConfiguration } from "./sheet-actions";
 
 const sheetMessages: Record<string, string> = {
@@ -215,6 +216,16 @@ export default async function CampaignDetailPage({
         ) : (
           <p className="muted">Validate the sheet to load headers and preview rows.</p>
         )}
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Template preview</p>
+            <h2>Render with selected row</h2>
+          </div>
+        </div>
+        <TemplatePreview headers={validation.headers} rows={validation.previewRows} />
       </section>
 
       <section className="panel">

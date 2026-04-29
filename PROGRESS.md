@@ -14,6 +14,10 @@ Status: complete; manual smoke test passed with dummy/test data.
 
 ## Phase 4 - Google Sheets Validation
 
+Status: complete; manual smoke test passed.
+
+## Phase 5 - Template Rendering Preview
+
 Status: complete and ready for review.
 
 ## Completed Work
@@ -92,6 +96,22 @@ Status: complete and ready for review.
 - Kept Gmail sending, campaign execution, scheduling cron, template rendering,
   sequences, unsubscribe, and reply detection out of Phase 4.
 
+## Phase 5 Completed Work
+
+- Added a safe no-eval template renderer for row-value variable substitution.
+- Added support for `{{variable}}` placeholders using exact and normalized
+  Google Sheet header names.
+- Added support for conditional blocks:
+  `{{#if e_transcript}}...{{else}}...{{/if}}`.
+- Added missing-column warnings when a template references a column that is not
+  present in the selected Sheet preview row context.
+- Added a client-side non-sending template preview panel on campaign detail
+  pages.
+- Added row selection from the first 10 loaded Sheet preview rows.
+- Added rendered subject and rendered body previews.
+- Kept Gmail sending, campaign execution, scheduling cron, sequences,
+  unsubscribe, status writeback, and reply detection out of Phase 5.
+
 ## Changed Files
 
 - `livesheet-campaigns/.env.example`
@@ -107,6 +127,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/app/campaigns/page.tsx`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/edit/page.tsx`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/page.tsx`
+- `livesheet-campaigns/src/app/campaigns/[campaignId]/TemplatePreview.tsx`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/sheet-actions.ts`
 - `livesheet-campaigns/src/app/api/google/auth/callback/route.ts`
 - `livesheet-campaigns/src/app/api/google/auth/start/route.ts`
@@ -128,6 +149,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/lib/google/state.ts`
 - `livesheet-campaigns/src/lib/sheets.ts`
 - `livesheet-campaigns/src/lib/supabase/server.ts`
+- `livesheet-campaigns/src/lib/templates.ts`
 - `livesheet-campaigns/supabase/migrations/202604280001_initial_schema.sql`
 
 ## Setup Instructions
@@ -199,8 +221,8 @@ npm run build
 
 Verification completed in this phase:
 
-- `npm run lint` passed on 2026-04-28 after Phase 4.
-- `npm run build` passed on 2026-04-28 after Phase 4.
+- `npm run lint` passed on 2026-04-29 after Phase 5.
+- `npm run build` passed on 2026-04-29 after Phase 5.
 - `supabase db push` applied
   `supabase/migrations/202604280001_initial_schema.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-28.
@@ -234,6 +256,11 @@ Manual checks after env and database setup:
 - Confirm worksheet headers load and missing required columns are reported.
 - Save column mappings and confirm they persist after refresh.
 - Confirm the first 10 data rows appear in the preview table.
+- Select a row in the template preview panel.
+- Render a subject/body with `{{first_name}}` and other Sheet variables.
+- Test a conditional block such as
+  `{{#if e_transcript}}Has e-transcript{{else}}No e-transcript{{/if}}`.
+- Reference a missing column and confirm a warning appears.
 - Use pause/resume and confirm the status changes.
 - Delete the campaign and confirm it disappears from the list.
 - Use `Disconnect` and confirm the connected account is removed.
@@ -242,13 +269,15 @@ Manual checks after env and database setup:
 ## Not Implemented Yet
 
 - Gmail sending.
-- Template rendering.
 - Scheduler and cron routes.
 - Live row detection and writeback.
+- Campaign execution.
+- Sequences.
 - Unsubscribe and suppression workflows.
+- Status writeback.
 - Reply detection.
 
 ## Next Steps
 
-Phase 5 should implement sequence/template management only after Phase 4 review
-is complete.
+Phase 6 should implement sequence management only after Phase 5 review is
+complete.
