@@ -37,6 +37,16 @@ export type SheetValidationResult = {
   error?: string;
 };
 
+export type SheetDataRow = {
+  rowNumber: number;
+  values: string[];
+};
+
+export type CampaignSheetRows = {
+  headers: string[];
+  rows: SheetDataRow[];
+};
+
 type CampaignColumnMappingRow = {
   id: string;
   campaign_id: string;
@@ -73,6 +83,12 @@ type SpreadsheetResponse = {
 
 type ValuesResponse = {
   values?: string[][];
+  error?: {
+    message?: string;
+  };
+};
+
+type BatchUpdateResponse = {
   error?: {
     message?: string;
   };
@@ -173,6 +189,91 @@ export async function validateCampaignSheet({
 
       throw retryError;
     }
+  }
+}
+
+export async function fetchCampaignSheetRows({
+  googleAccountId,
+  sheetId,
+  worksheetName,
+}: {
+  googleAccountId: string;
+  sheetId: string;
+  worksheetName: string;
+}): Promise<CampaignSheetRows> {
+  return runWithSheetsTokenRetry(googleAccountId, async (accessToken) => {
+    const values = await fetchWorksheetValues(sheetId, worksheetName, accessToken, "A1:ZZ");
+    const headers = normalizeHeaders(values[0] ?? []);
+
+    return {
+      headers,
+      rows: values.slice(1).map((row, index) => ({
+        rowNumber: index + 2,
+        values: normalizeRow(row, headers.length),
+      })),
+    };
+  });
+}
+
+export async function updateCampaignSheetRow({
+  googleAccountId,
+  headers,
+  mapping,
+  rowNumber,
+  sheetId,
+  values,
+  worksheetName,
+}: {
+  googleAccountId: string;
+  headers: string[];
+  mapping: CampaignColumnMapping;
+  rowNumber: number;
+  sheetId: string;
+  values: Partial<{
+    errorMessage: string;
+    lastSentAt: string;
+    lastTouchSent: string;
+    stage: string;
+    status: string;
+  }>;
+  worksheetName: string;
+}): Promise<void> {
+  const data = [
+    buildMappedCellUpdate(headers, mapping.statusColumn, rowNumber, values.status),
+    buildMappedCellUpdate(headers, mapping.stageColumn, rowNumber, values.stage),
+    buildMappedCellUpdate(headers, mapping.lastSentAtColumn, rowNumber, values.lastSentAt),
+    buildMappedCellUpdate(headers, mapping.lastTouchSentColumn, rowNumber, values.lastTouchSent),
+    buildMappedCellUpdate(headers, mapping.errorMessageColumn, rowNumber, values.errorMessage),
+  ].filter((update): update is { range: string; values: string[][] } => Boolean(update));
+
+  if (data.length === 0) {
+    return;
+  }
+
+  await runWithSheetsTokenRetry(googleAccountId, async (accessToken) => {
+    await batchUpdateWorksheetValues({
+      accessToken,
+      data,
+      sheetId,
+      worksheetName,
+    });
+  });
+}
+
+async function runWithSheetsTokenRetry<T>(
+  googleAccountId: string,
+  operation: (accessToken: string) => Promise<T>,
+): Promise<T> {
+  const accessToken = await getValidGoogleAccessToken(googleAccountId);
+
+  try {
+    return await operation(accessToken);
+  } catch (error) {
+    if (!isGoogleAuthError(error)) {
+      throw error;
+    }
+
+    return operation(await refreshGoogleAccessToken(googleAccountId));
   }
 }
 
@@ -289,8 +390,9 @@ async function fetchWorksheetValues(
   sheetId: string,
   worksheetName: string,
   accessToken: string,
+  rangeSuffix = "A1:ZZ11",
 ): Promise<string[][]> {
-  const range = `${quoteWorksheetName(worksheetName)}!A1:ZZ11`;
+  const range = `${quoteWorksheetName(worksheetName)}!${rangeSuffix}`;
   const url = new URL(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`,
   );
@@ -299,14 +401,48 @@ async function fetchWorksheetValues(
   return data.values ?? [];
 }
 
+async function batchUpdateWorksheetValues({
+  accessToken,
+  data,
+  sheetId,
+  worksheetName,
+}: {
+  accessToken: string;
+  data: Array<{ range: string; values: string[][] }>;
+  sheetId: string;
+  worksheetName: string;
+}): Promise<void> {
+  const url = new URL(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`,
+  );
+
+  await fetchGoogleJson<BatchUpdateResponse>(url, accessToken, {
+    method: "POST",
+    body: JSON.stringify({
+      data: data.map((entry) => ({
+        ...entry,
+        range: `${quoteWorksheetName(worksheetName)}!${entry.range}`,
+      })),
+      valueInputOption: "RAW",
+    }),
+  });
+}
+
 async function fetchGoogleJson<T extends { error?: { message?: string } }>(
   url: URL,
   accessToken: string,
+  init: RequestInit = {},
 ): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", `Bearer ${accessToken}`);
+
+  if (init.body) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    ...init,
+    headers,
   });
   const data = (await response.json()) as T;
 
@@ -330,6 +466,41 @@ function normalizeHeaders(headers: string[]): string[] {
 
 function normalizeRow(row: string[], width: number): string[] {
   return Array.from({ length: width }, (_, index) => row[index] ?? "");
+}
+
+function buildMappedCellUpdate(
+  headers: string[],
+  mappedColumn: string | null,
+  rowNumber: number,
+  value: string | undefined,
+): { range: string; values: string[][] } | null {
+  if (!mappedColumn || value === undefined) {
+    return null;
+  }
+
+  const columnIndex = headers.findIndex((header) => normalizeHeader(header) === normalizeHeader(mappedColumn));
+
+  if (columnIndex < 0) {
+    throw new Error(`Mapped column "${mappedColumn}" was not found in the Sheet headers.`);
+  }
+
+  return {
+    range: `${toColumnName(columnIndex + 1)}${rowNumber}`,
+    values: [[value]],
+  };
+}
+
+function toColumnName(columnNumber: number): string {
+  let number = columnNumber;
+  let name = "";
+
+  while (number > 0) {
+    const remainder = (number - 1) % 26;
+    name = String.fromCharCode(65 + remainder) + name;
+    number = Math.floor((number - 1) / 26);
+  }
+
+  return name;
 }
 
 function quoteWorksheetName(worksheetName: string): string {

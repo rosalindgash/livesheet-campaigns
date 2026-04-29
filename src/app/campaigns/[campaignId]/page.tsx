@@ -15,6 +15,7 @@ import {
 import { BodyTemplateEditor } from "./BodyTemplateEditor";
 import { SequenceTemplatePreview } from "./SequenceTemplatePreview";
 import { deleteSequenceTemplate, saveSequenceTemplate } from "./sequence-actions";
+import { runCampaignNowAction } from "./run-actions";
 import { saveColumnMapping, validateSheetConfiguration } from "./sheet-actions";
 import { sendOwnerTestEmail } from "./test-send-actions";
 
@@ -44,12 +45,18 @@ const testSendMessages: Record<string, string> = {
   skipped: "Test email was skipped because the recipient is suppressed. A skipped send history row was recorded.",
 };
 
+const runMessages: Record<string, string> = {
+  completed: "Manual campaign run finished. Check run logs, send history, and the Sheet for row updates.",
+  "confirmation-required": "Confirm the manual run before sending real email to eligible Sheet rows.",
+  failed: "Manual campaign run could not start. Check campaign setup and try again.",
+};
+
 export default async function CampaignDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ campaignId: string }>;
-  searchParams: Promise<{ sequence?: string; sheet?: string; testSend?: string }>;
+  searchParams: Promise<{ run?: string; sequence?: string; sheet?: string; testSend?: string }>;
 }) {
   await requireOwnerSession();
   const { campaignId } = await params;
@@ -63,6 +70,7 @@ export default async function CampaignDetailPage({
   const sheetMessage = query.sheet ? sheetMessages[query.sheet] : null;
   const sequenceMessage = query.sequence ? sequenceMessages[query.sequence] : null;
   const testSendMessage = query.testSend ? testSendMessages[query.testSend] : null;
+  const runMessage = query.run ? runMessages[query.run] : null;
   const ownerEmail = process.env.APP_OWNER_EMAIL ?? "";
 
   return (
@@ -117,6 +125,32 @@ export default async function CampaignDetailPage({
             <Detail label="Updated" value={formatOptionalDate(campaign.updatedAt)} />
           </dl>
         </div>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Manual run</p>
+            <h2>Run Touch 1 now</h2>
+          </div>
+        </div>
+        {runMessage ? <div className="notice">{runMessage}</div> : null}
+        <form action={runCampaignNowAction} className="manual-run-form">
+          <input name="campaignId" type="hidden" value={campaign.id} />
+          <div className="notice error">
+            This sends real email to eligible rows in the connected Google Sheet. Use only a
+            sandbox Sheet with owner-controlled email addresses while testing Phase 7.
+          </div>
+          <label className="field checkbox-field">
+            <input name="confirmRealCampaignRun" type="checkbox" />
+            <span>I understand this will send real email to eligible Sheet rows.</span>
+          </label>
+          <div className="form-actions">
+            <button className="danger-button" type="submit">
+              Run now
+            </button>
+          </div>
+        </form>
       </section>
 
       <section className="panel">

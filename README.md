@@ -1,6 +1,6 @@
 # LiveSheet Campaigns
 
-Single-user Google Sheets and Gmail outreach sequencer. Phase 6 contains the
+Single-user Google Sheets and Gmail outreach sequencer. Phase 7 contains the
 app foundation, Google OAuth connection, encrypted token storage, token refresh
 handling, connected account display, disconnect, campaign CRUD, Google Sheets
 validation, worksheet/header checks, row preview, column mapping, and
@@ -8,10 +8,14 @@ non-sending saved message template management with a basic HTML body editor and
 preview rendering. It also includes owner-only Gmail test sends that render a
 saved template against a selected Sheet preview row, apply unsubscribe-link
 handling, check global suppression before sending, and persist test send history.
+Phase 7 adds guarded manual Touch 1 campaign runs that read the Sheet fresh,
+enforce campaign/global daily caps, send through Gmail, write `send_history`,
+update eligible Sheet rows after successful or failed sends, and log
+`campaign_runs`.
 
-Campaign execution, scheduled sending, real prospect sending, Google Sheet
-writeback, multi-touch sequence execution, reply detection, click/open tracking,
-and public SaaS features are intentionally not implemented yet.
+Scheduled sending, cron execution, multi-touch sequence execution, reply
+detection, click/open tracking, and public SaaS features are intentionally not
+implemented yet.
 
 ## Local Setup
 
@@ -86,7 +90,9 @@ rendered templates against selected Sheet rows. Saved message templates support
 up to three touches per campaign. Body templates support basic sanitized HTML,
 and owner-only test sends can send a rendered template to `APP_OWNER_EMAIL` or
 an explicitly confirmed owner-controlled test inbox. Minimal unsubscribe links
-and global suppression records are enforced before test sends.
+and global suppression records are enforced before test sends and manual
+campaign runs. Use the guarded `Run now` button only with sandbox Sheets that
+contain owner-controlled email addresses while testing.
 
 ## Verification
 

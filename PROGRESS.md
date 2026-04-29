@@ -36,6 +36,10 @@ Status: complete; manual unsubscribe smoke test passed.
 
 Status: complete and ready for review.
 
+## Phase 7 - Manual Campaign Runs
+
+Status: complete and ready for review.
+
 ## Completed Work
 
 - Read `BUILD_SPEC.md` fully and created a 12-phase implementation plan.
@@ -209,6 +213,38 @@ Status: complete and ready for review.
   multi-touch sequence execution, cron, reply detection, click/open tracking,
   and real prospect sending out of Phase 6.
 
+## Phase 7 Completed Work
+
+- Added manual campaign execution from a guarded `Run now` button on the
+  campaign detail page.
+- Added a required confirmation checkbox and warning that manual runs send real
+  email to eligible Google Sheet rows.
+- Manual runs read the connected Google Sheet fresh every time they start.
+- Implemented Touch 1 only using the active saved Step 1 template.
+- Added live row eligibility checks for valid email, row status/stage, paused
+  rows, unsubscribed rows, and replied rows.
+- Added global suppression checks during processing so suppressed recipients are
+  skipped without Gmail sending.
+- Enforced campaign daily send caps and global daily send caps before
+  processing rows.
+- Implemented revised cap behavior: over-cap eligible rows are not attempted,
+  do not receive `send_history` rows, and are not written back to the Sheet.
+- Added campaign-run-level cap tracking with `emails_selected_for_run`,
+  `eligible_not_processed_due_to_cap`, and `cap_limited`.
+- Added real campaign `send_history` persistence for selected rows that are
+  sent, skipped during processing, or failed.
+- Added Google Sheet writeback for successful sends:
+  `status = touch_1_sent`, `stage = touch_1_sent`, `last_sent_at`,
+  `last_touch_sent = 1`, and blank `error_message`.
+- Added Google Sheet writeback for failed sends:
+  `status = error` and a short `error_message`.
+- Added `campaign_runs` creation and completion updates for manual runs,
+  including rows scanned, eligible rows found, selected rows, sent/skipped
+  counts, errors, cap limitation, and summaries.
+- Kept scheduled sending, cron, multi-touch follow-up execution, reply
+  detection, click/open tracking, public SaaS features, and automated prospect
+  scheduling out of Phase 7.
+
 ## Changed Files
 
 - `livesheet-campaigns/.env.example`
@@ -230,6 +266,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/SequenceTemplatePreview.tsx`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/TemplatePreview.tsx`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/sequence-actions.ts`
+- `livesheet-campaigns/src/app/campaigns/[campaignId]/run-actions.ts`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/sheet-actions.ts`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/test-send-actions.ts`
 - `livesheet-campaigns/src/app/api/google/auth/callback/route.ts`
@@ -245,6 +282,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/app/page.tsx`
 - `livesheet-campaigns/src/app/page.module.css` (removed starter styles)
 - `livesheet-campaigns/src/lib/auth.ts`
+- `livesheet-campaigns/src/lib/campaign-runner.ts`
 - `livesheet-campaigns/src/lib/campaigns.ts`
 - `livesheet-campaigns/src/lib/crypto/token-encryption.ts`
 - `livesheet-campaigns/src/lib/dashboard-data.ts`
@@ -262,6 +300,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/supabase/migrations/202604280001_initial_schema.sql`
 - `livesheet-campaigns/supabase/migrations/202604290001_unsubscribe_tokens.sql`
 - `livesheet-campaigns/supabase/migrations/202604290002_send_history_test_marker.sql`
+- `livesheet-campaigns/supabase/migrations/202604290003_campaign_run_cap_tracking.sql`
 
 ## Setup Instructions
 
@@ -336,6 +375,8 @@ Verification completed in this phase:
 - `npm run build` passed on 2026-04-29 after Phase 6A.
 - `npm run lint` passed on 2026-04-29 after Phase 6.
 - `npm run build` passed on 2026-04-29 after Phase 6.
+- `npm run lint` passed on 2026-04-29 after Phase 7.
+- `npm run build` passed on 2026-04-29 after Phase 7.
 - `supabase db push` applied
   `supabase/migrations/202604290001_unsubscribe_tokens.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-29.
@@ -344,6 +385,11 @@ Verification completed in this phase:
   `livesheet-campaigns` Supabase project on 2026-04-29.
 - Verified `send_history.send_type` is reachable through the service role
   client.
+- `supabase db push` applied
+  `supabase/migrations/202604290003_campaign_run_cap_tracking.sql` to the
+  hosted `livesheet-campaigns` Supabase project on 2026-04-29.
+- Verified the new `campaign_runs` cap-tracking columns are reachable through
+  the service role client.
 - `supabase db push` applied
   `supabase/migrations/202604280001_initial_schema.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-28.
@@ -416,6 +462,26 @@ Manual checks after env and database setup:
   and `send_history.status = skipped`.
 - Enter a non-owner test recipient without checking the owner-controlled
   confirmation box and confirm the app blocks the send.
+- Prepare a sandbox Sheet with only owner-controlled email addresses.
+- Configure an active Step 1 saved template.
+- Confirm the campaign detail page shows the `Run now` manual-run panel.
+- Try `Run now` without checking the confirmation box and confirm the app
+  blocks the run.
+- Check the confirmation box and run the campaign manually.
+- Confirm only eligible Touch 1 rows are processed.
+- Confirm successful sends create `send_history` rows with `send_type =
+  campaign`.
+- Confirm successful sends write back `touch_1_sent`, `last_sent_at`,
+  `last_touch_sent = 1`, and a blank `error_message` to the Sheet.
+- Confirm suppressed selected rows create skipped `send_history` rows and do
+  not send email.
+- Confirm failed sends create failed `send_history` rows and write Sheet
+  `status = error` plus an error message.
+- Set campaign/global caps below the eligible row count and confirm over-cap
+  rows receive no `send_history` row and no Sheet writeback.
+- Confirm `campaign_runs` logs rows scanned, eligible rows found, selected row
+  count, over-cap count, cap-limited state, sent/skipped/error counts, and run
+  status.
 - Use pause/resume and confirm the status changes.
 - Delete the campaign and confirm it disappears from the list.
 - Use `Disconnect` and confirm the connected account is removed.
@@ -423,13 +489,12 @@ Manual checks after env and database setup:
 
 ## Not Implemented Yet
 
-- Real prospect Gmail sending outside the owner-only test-send flow.
+- Automated prospect Gmail sending outside guarded manual runs.
 - Scheduler and cron routes.
-- Live row detection and writeback.
-- Campaign execution.
+- Scheduled campaign execution.
 - Follow-up execution logic.
-- Status writeback.
 - Reply detection.
+- Click/open tracking.
 
 ## Next Steps
 
