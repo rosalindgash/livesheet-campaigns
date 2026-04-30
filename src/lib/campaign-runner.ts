@@ -137,6 +137,7 @@ export async function runCampaign(
       }),
       getGlobalDailySendCap(),
     ]);
+    const repliedRecipients = await getDetectedReplyRecipients(campaignId);
 
     if (!steps[1]) {
       throw new Error("Active Step 1 template is required before running this campaign.");
@@ -151,6 +152,7 @@ export async function runCampaign(
     const candidates = await getCandidateRows({
       headers: sheetRows.headers,
       mapping,
+      repliedRecipients,
       rows: sheetRows.rows,
       steps,
     });
@@ -339,11 +341,13 @@ async function processSelectedRow({
 async function getCandidateRows({
   headers,
   mapping,
+  repliedRecipients,
   rows,
   steps,
 }: {
   headers: string[];
   mapping: CampaignColumnMapping;
+  repliedRecipients: Set<string>;
   rows: SheetDataRow[];
   steps: Partial<Record<SequenceStepNumber, ActiveSequenceStep>>;
 }): Promise<CandidateRow[]> {
@@ -371,6 +375,10 @@ async function getCandidateRows({
       continue;
     }
 
+    if (repliedRecipients.has(email)) {
+      continue;
+    }
+
     if (!step) {
       continue;
     }
@@ -393,6 +401,21 @@ async function getCandidateRows({
   }
 
   return candidates;
+}
+
+async function getDetectedReplyRecipients(campaignId: string): Promise<Set<string>> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("reply_events")
+    .select("recipient_email")
+    .eq("campaign_id", campaignId)
+    .returns<Array<{ recipient_email: string }>>();
+
+  if (error) {
+    throw error;
+  }
+
+  return new Set((data ?? []).map((event) => normalizeEmail(event.recipient_email)));
 }
 
 function getEligibleStep({

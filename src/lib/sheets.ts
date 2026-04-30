@@ -233,6 +233,7 @@ export async function updateCampaignSheetRow({
     errorMessage: string;
     lastSentAt: string;
     lastTouchSent: string;
+    repliedAt: string;
     stage: string;
     status: string;
   }>;
@@ -243,6 +244,7 @@ export async function updateCampaignSheetRow({
     buildMappedCellUpdate(headers, mapping.stageColumn, rowNumber, values.stage),
     buildMappedCellUpdate(headers, mapping.lastSentAtColumn, rowNumber, values.lastSentAt),
     buildMappedCellUpdate(headers, mapping.lastTouchSentColumn, rowNumber, values.lastTouchSent),
+    buildMappedCellUpdate(headers, mapping.repliedAtColumn, rowNumber, values.repliedAt),
     buildMappedCellUpdate(headers, mapping.errorMessageColumn, rowNumber, values.errorMessage),
   ].filter((update): update is { range: string; values: string[][] } => Boolean(update));
 

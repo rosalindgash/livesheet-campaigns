@@ -1,6 +1,6 @@
 # LiveSheet Campaigns
 
-Single-user Google Sheets and Gmail outreach sequencer. Phase 9 contains the
+Single-user Google Sheets and Gmail outreach sequencer. Phase 11 contains the
 app foundation, Google OAuth connection, encrypted token storage, token refresh
 handling, connected account display, disconnect, campaign CRUD, Google Sheets
 validation, worksheet/header checks, row preview, column mapping, and
@@ -16,10 +16,10 @@ endpoint that reuses the same runner and duplicate-run protections. Phase 9
 extends the shared runner to execute active Touch 1, Touch 2, and Touch 3 saved
 templates based on each Sheet row's stage and delay timing. Phase 10 adds an
 owner-only suppression admin page for manual suppressions and unsubscribe-event
-review.
+review. Phase 11 adds basic Gmail reply detection for campaign sends.
 
-Reply detection, click/open tracking, and public SaaS features are intentionally
-not implemented yet.
+Click/open tracking, CRM features, public SaaS features, billing, and teams are
+intentionally not implemented yet.
 
 ## Local Setup
 
@@ -153,6 +153,34 @@ Authorization: Bearer your-cron-secret
 Actual scheduled requests without `dryRun=1` send real email for due active
 campaigns. Keep production cron secret-protected and test only with sandbox
 Sheets and owner-controlled inboxes.
+
+## Reply Detection
+
+The reply detection endpoint is:
+
+```text
+POST /api/cron/check-replies
+```
+
+Every request must include `CRON_SECRET` as a bearer token:
+
+```http
+Authorization: Bearer your-cron-secret
+```
+
+Local dry-run check from PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:3000/api/cron/check-replies?dryRun=1" `
+  -Headers @{ Authorization = "Bearer your-cron-secret" }
+```
+
+Dry runs inspect eligible campaign send threads without writing
+`reply_events`, updating `send_history`, or writing back to Google Sheets.
+Normal runs record detected replies, mark the related send as
+`reply_detected`, and write `status = replied` plus `replied_at` to the source
+Sheet row when row information is available.
 
 ## Verification
 

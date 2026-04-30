@@ -6,6 +6,27 @@ type GmailSendResponse = {
   };
 };
 
+type GmailThreadResponse = {
+  error?: {
+    message?: string;
+  };
+  id?: string;
+  messages?: GmailThreadMessage[];
+};
+
+export type GmailThreadMessage = {
+  id?: string;
+  internalDate?: string;
+  payload?: {
+    headers?: Array<{
+      name?: string;
+      value?: string;
+    }>;
+  };
+  snippet?: string;
+  threadId?: string;
+};
+
 export type GmailSendResult = {
   messageId: string;
   threadId: string | null;
@@ -59,6 +80,42 @@ export async function sendGmailMessage({
 
 export function isGmailAuthError(error: unknown): error is GmailApiError {
   return error instanceof GmailApiError && (error.status === 401 || error.status === 403);
+}
+
+export async function fetchGmailThread({
+  accessToken,
+  threadId,
+}: {
+  accessToken: string;
+  threadId: string;
+}): Promise<GmailThreadMessage[]> {
+  const url = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}`);
+
+  url.searchParams.set("format", "metadata");
+  for (const header of [
+    "From",
+    "Subject",
+    "Date",
+    "Auto-Submitted",
+    "Precedence",
+    "List-Id",
+    "X-Auto-Response-Suppress",
+  ]) {
+    url.searchParams.append("metadataHeaders", header);
+  }
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const data = (await response.json()) as GmailThreadResponse;
+
+  if (!response.ok || data.error) {
+    throw new GmailApiError(data.error?.message ?? "Gmail thread request failed.", response.status);
+  }
+
+  return data.messages ?? [];
 }
 
 function buildRawEmail({

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { rejectUnauthorizedCronRequest } from "@/lib/cron-auth";
-import { runDueCampaigns } from "@/lib/scheduler";
+import { checkCampaignReplies } from "@/lib/reply-detection";
 
 export async function POST(request: NextRequest) {
   const unauthorizedResponse = rejectUnauthorizedCronRequest(request);
@@ -12,14 +12,7 @@ export async function POST(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const dryRun = searchParams.get("dryRun") === "1" || searchParams.get("dry_run") === "1";
-  const nowParam = searchParams.get("now");
-  const now = dryRun && nowParam ? new Date(nowParam) : new Date();
-
-  if (Number.isNaN(now.getTime())) {
-    return NextResponse.json({ error: "Invalid now timestamp." }, { status: 400 });
-  }
-
-  const result = await runDueCampaigns({ dryRun, now });
+  const result = await checkCampaignReplies({ dryRun });
 
   return NextResponse.json(result);
 }

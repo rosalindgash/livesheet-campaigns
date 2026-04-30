@@ -3,6 +3,7 @@ import Link from "next/link";
 import { deleteCampaign, pauseCampaign, resumeCampaign } from "@/app/campaigns/actions";
 import { requireOwnerSession } from "@/lib/auth";
 import { getCampaign, type Campaign } from "@/lib/campaigns";
+import { getCampaignReplySummary } from "@/lib/reply-detection";
 import { getCampaignScheduleDetails } from "@/lib/scheduler";
 import { listSequenceSteps, type SequenceStep } from "@/lib/sequence-steps";
 import {
@@ -67,7 +68,10 @@ export default async function CampaignDetailPage({
     getCampaignColumnMapping(campaignId),
     listSequenceSteps(campaignId),
   ]);
-  const scheduleDetails = await getCampaignScheduleDetails(campaign);
+  const [scheduleDetails, replySummary] = await Promise.all([
+    getCampaignScheduleDetails(campaign),
+    getCampaignReplySummary(campaign.id),
+  ]);
   const validation = await loadSheetValidation(campaign, mapping);
   const sheetMessage = query.sheet ? sheetMessages[query.sheet] : null;
   const sequenceMessage = query.sequence ? sequenceMessages[query.sequence] : null;
@@ -135,9 +139,20 @@ export default async function CampaignDetailPage({
             />
             <Detail label="Next scheduled check" value={scheduleDetails.summary.nextDescription} />
             <Detail label="Scheduler status" value={scheduleDetails.summary.reason} />
+            <Detail label="Detected replies" value={replySummary.replyCount.toString()} />
+            <Detail label="Latest reply" value={formatOptionalDate(replySummary.latestReplyAt)} />
             <Detail label="Created" value={formatOptionalDate(campaign.createdAt)} />
             <Detail label="Updated" value={formatOptionalDate(campaign.updatedAt)} />
           </dl>
+          {replySummary.recentReplies.length > 0 ? (
+            <div className="chip-list">
+              {replySummary.recentReplies.map((reply) => (
+                <span key={`${reply.recipientEmail}-${reply.replyDetectedAt}`}>
+                  {reply.recipientEmail} replied {formatOptionalDate(reply.replyDetectedAt)}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
       </section>
 

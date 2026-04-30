@@ -52,6 +52,10 @@ Status: complete and ready for review.
 
 Status: complete and ready for review.
 
+## Phase 11 - Gmail Reply Detection
+
+Status: complete and ready for review.
+
 ## Completed Work
 
 - Read `BUILD_SPEC.md` fully and created a 12-phase implementation plan.
@@ -339,6 +343,34 @@ Status: complete and ready for review.
 - Kept reply detection, click/open tracking, public SaaS features, billing,
   teams, AI writing, and broader CRM features out of Phase 10.
 
+## Phase 11 Completed Work
+
+- Added Gmail thread fetching support using the connected Google account.
+- Added `POST /api/cron/check-replies`, protected by `CRON_SECRET`.
+- Added `dryRun=1` support for reply checks so eligible threads can be
+  inspected without writing changes.
+- Added reply detection for campaign `send_history` rows with `send_type =
+  campaign`, `status = sent`, Gmail thread IDs, and no existing reply event.
+- Inspected Gmail thread messages after the sent campaign message.
+- Detected replies from the recipient email and ignored messages from the
+  connected sender Gmail account.
+- Added basic auto-reply filtering for automatic replies, out-of-office
+  subjects, auto-submitted headers, precedence bulk/list, and list headers.
+- Added idempotency protection for reply events by send/thread/recipient.
+- Recorded reply detections in `reply_events`.
+- Marked related `send_history` rows as `reply_detected`.
+- Attempted Google Sheet writeback for detected replies:
+  `status = replied`, `replied_at = reply timestamp`, and blank
+  `error_message`.
+- Preserved reply events when Sheet writeback fails.
+- Updated campaign run eligibility to skip recipients already present in
+  `reply_events` so detected replies stop future touches even if Sheet
+  writeback fails.
+- Added a simple campaign-detail reply indicator with reply count, latest
+  reply timestamp, and recent reply chips.
+- Kept click/open tracking, CRM features, public SaaS features, billing, teams,
+  and AI writing out of Phase 11.
+
 ## Changed Files
 
 - `livesheet-campaigns/.env.example`
@@ -366,6 +398,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/sheet-actions.ts`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/test-send-actions.ts`
 - `livesheet-campaigns/src/app/api/cron/run-due-campaigns/route.ts`
+- `livesheet-campaigns/src/app/api/cron/check-replies/route.ts`
 - `livesheet-campaigns/src/app/api/google/auth/callback/route.ts`
 - `livesheet-campaigns/src/app/api/google/auth/start/route.ts`
 - `livesheet-campaigns/src/app/api/google/disconnect/route.ts`
@@ -381,6 +414,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/lib/auth.ts`
 - `livesheet-campaigns/src/lib/campaign-runner.ts`
 - `livesheet-campaigns/src/lib/campaigns.ts`
+- `livesheet-campaigns/src/lib/cron-auth.ts`
 - `livesheet-campaigns/src/lib/crypto/token-encryption.ts`
 - `livesheet-campaigns/src/lib/dashboard-data.ts`
 - `livesheet-campaigns/src/lib/env.ts`
@@ -389,6 +423,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/lib/google/oauth.ts`
 - `livesheet-campaigns/src/lib/google/state.ts`
 - `livesheet-campaigns/src/lib/html-sanitizer.ts`
+- `livesheet-campaigns/src/lib/reply-detection.ts`
 - `livesheet-campaigns/src/lib/sheets.ts`
 - `livesheet-campaigns/src/lib/scheduler.ts`
 - `livesheet-campaigns/src/lib/sequence-steps.ts`
@@ -402,6 +437,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/supabase/migrations/202604290003_campaign_run_cap_tracking.sql`
 - `livesheet-campaigns/supabase/migrations/202604300001_scheduled_campaign_runs.sql`
 - `livesheet-campaigns/supabase/migrations/202604300002_campaign_run_step_metadata.sql`
+- `livesheet-campaigns/supabase/migrations/202604300003_reply_detection_idempotency.sql`
 
 ## Setup Instructions
 
@@ -512,6 +548,21 @@ Verification completed in this phase:
 - Verified a temporary `manual_suppression` row can be inserted into and
   removed from `suppression_list` using `source = manual_admin`.
 - Manual Phase 10 suppression admin tests passed on 2026-04-30.
+- `npm run lint` passed on 2026-04-30 after Phase 11.
+- `npm run build` passed on 2026-04-30 after Phase 11 and included
+  `/api/cron/check-replies` in the route output.
+- `supabase db push` applied
+  `supabase/migrations/202604300003_reply_detection_idempotency.sql` to the
+  hosted `livesheet-campaigns` Supabase project on 2026-04-30.
+- Verified `reply_events` is reachable through the service role client.
+- Verified `POST /api/cron/check-replies?dryRun=1` rejects missing cron
+  authentication with `401`.
+- Verified `POST /api/cron/check-replies?dryRun=1` returns a dry-run JSON
+  response with valid `CRON_SECRET`; the dry run checked 7 eligible campaign
+  sends and made no writes.
+- Manual Phase 11 tests passed on 2026-04-30, including dry run, real run,
+  Sheet writeback, `send_history` update, `reply_events` insert, duplicate
+  protection, and follow-up skip behavior.
 - `supabase db push` applied
   `supabase/migrations/202604290001_unsubscribe_tokens.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-29.
@@ -656,6 +707,18 @@ Manual checks after env and database setup:
   each sent touch.
 - Confirm `campaign_runs.run_metadata.stepStats` reports selected/sent counts
   for Steps 1, 2, and 3.
+- Send a campaign email from Demo to an owner-controlled recipient.
+- Reply from that recipient inbox.
+- Call `POST /api/cron/check-replies?dryRun=1` with `CRON_SECRET` and confirm
+  the response reports the pending detection without writing changes.
+- Call `POST /api/cron/check-replies` with `CRON_SECRET`.
+- Confirm `reply_events` has the reply with campaign ID, send history ID,
+  recipient email, Gmail thread/message IDs, timestamp, subject, and snippet.
+- Confirm the related `send_history.status` changes to `reply_detected`.
+- Confirm the source Sheet row gets `status = replied`, `replied_at` filled,
+  and blank `error_message`.
+- Confirm the campaign detail page shows the detected reply count/latest reply.
+- Confirm a future campaign run skips the replied row.
 - Delete the campaign and confirm it disappears from the list.
 - Use `Disconnect` and confirm the connected account is removed.
 - Use `Sign out` and confirm the session is cleared.
@@ -663,9 +726,9 @@ Manual checks after env and database setup:
 ## Not Implemented Yet
 
 - Automated prospect Gmail sending outside guarded manual runs.
-- Reply detection.
 - Click/open tracking.
+- CRM features.
 
 ## Next Steps
 
-Phase 9 should be scoped after Phase 8 review.
+Phase 12 should be scoped after Phase 11 review.
