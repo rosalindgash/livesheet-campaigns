@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { rejectUnauthorizedCronRequest } from "@/lib/cron-auth";
 import { runDueCampaigns } from "@/lib/scheduler";
 
-export async function POST(request: NextRequest) {
+export const dynamic = "force-dynamic";
+
+async function handleRunDueCampaigns(request: NextRequest) {
   const unauthorizedResponse = rejectUnauthorizedCronRequest(request);
 
   if (unauthorizedResponse) {
@@ -22,4 +24,12 @@ export async function POST(request: NextRequest) {
   const result = await runDueCampaigns({ dryRun, now });
 
   return NextResponse.json(result);
+}
+
+export async function GET(request: NextRequest) {
+  return handleRunDueCampaigns(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleRunDueCampaigns(request);
 }

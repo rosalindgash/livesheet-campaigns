@@ -131,6 +131,26 @@ blocked before campaign sending across all touch levels.
 - `DEFAULT_TIMEZONE`: Fallback campaign/settings timezone.
 - `DEFAULT_GLOBAL_DAILY_SEND_CAP`: Fallback global daily send cap.
 
+For Vercel production, configure these environment variable names in the
+project settings:
+
+```text
+NEXT_PUBLIC_APP_URL
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+APP_OWNER_EMAIL
+AUTH_PASSWORD_HASH
+AUTH_SECRET
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+GOOGLE_REDIRECT_URI
+TOKEN_ENCRYPTION_KEY
+CRON_SECRET
+DEFAULT_TIMEZONE
+DEFAULT_GLOBAL_DAILY_SEND_CAP
+```
+
 ## Google OAuth Summary
 
 Create a Google OAuth client, add the local callback URL to authorized redirect
@@ -153,7 +173,7 @@ campaign/test sends, and Gmail modify access for reply-thread inspection.
 The scheduler endpoint is:
 
 ```text
-POST /api/cron/run-due-campaigns
+GET or POST /api/cron/run-due-campaigns
 ```
 
 Every request must include `CRON_SECRET` as a bearer token:
@@ -181,7 +201,7 @@ saved send time:
 Production cron should call:
 
 ```text
-POST https://your-domain.example/api/cron/run-due-campaigns
+GET https://your-domain.example/api/cron/run-due-campaigns
 Authorization: Bearer your-cron-secret
 ```
 
@@ -189,12 +209,39 @@ Actual scheduled requests without `dryRun=1` send real email for due active
 campaigns. Keep production cron secret-protected and test only with sandbox
 Sheets and owner-controlled inboxes.
 
+Vercel Cron sends `GET` requests. When `CRON_SECRET` is configured in Vercel,
+Vercel sends it automatically as `Authorization: Bearer <CRON_SECRET>`, which
+matches this app's cron authentication. Local/manual testing can still use
+`POST` with the same bearer header.
+
+Optional Vercel cron configuration:
+
+```json
+{
+  "crons": [
+    {
+      "path": "/api/cron/run-due-campaigns",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/check-replies",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}
+```
+
+Vercel cron schedules use UTC. Verify your Vercel plan's cron frequency limits
+before adding `vercel.json`; Hobby projects may require once-daily schedules.
+The scheduler still evaluates each campaign's own `send_days`, `send_time`, and
+`timezone` before sending.
+
 ## Reply Detection
 
 The reply detection endpoint is:
 
 ```text
-POST /api/cron/check-replies
+GET or POST /api/cron/check-replies
 ```
 
 Every request must include `CRON_SECRET` as a bearer token:
@@ -227,10 +274,36 @@ npm run build
 ## Deployment Notes
 
 Apply all Supabase migrations before deploying. Configure all production
-environment variables in the hosting provider, especially
-`SUPABASE_SERVICE_ROLE_KEY`, `TOKEN_ENCRYPTION_KEY`, `AUTH_SECRET`, Google OAuth
-values, and `CRON_SECRET`. Production cron should call the scheduler and reply
-detection endpoints with `Authorization: Bearer <CRON_SECRET>`.
+environment variables in Vercel before the first production deploy. Set
+`NEXT_PUBLIC_APP_URL` to the production app URL and set `GOOGLE_REDIRECT_URI` to
+the production callback URL:
+
+```text
+https://your-production-domain.example/api/google/auth/callback
+```
+
+Add that same production callback URL to the Google OAuth client's authorized
+redirect URIs. Keep the local callback URL authorized if you still test locally.
+
+Do not commit `.env.local`, `.env.production`, Vercel `.env` downloads, or any
+secret-bearing files. This repo's `.gitignore` ignores `.env*` while allowing
+`.env.example`.
+
+Vercel deployment checklist:
+
+1. Push the repository to GitHub.
+2. Import the repository into Vercel.
+3. Set the production environment variables listed above.
+4. Apply Supabase migrations before using the deployed app.
+5. Redeploy after changing environment variables.
+6. Connect Google OAuth from the deployed app once the production redirect URI
+   is configured.
+7. Add optional Vercel Cron schedules only after confirming campaigns are paused
+   or sandbox-safe.
+
+Production cron should call the scheduler and reply detection endpoints with
+`GET` and `Authorization: Bearer <CRON_SECRET>`. Vercel can supply that header
+automatically when `CRON_SECRET` is set.
 
 ## Security Notes
 
