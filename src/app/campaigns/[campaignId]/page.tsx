@@ -53,6 +53,9 @@ const runMessages: Record<string, string> = {
   failed: "Manual campaign run could not start. Check campaign setup and try again.",
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function CampaignDetailPage({
   params,
   searchParams,
@@ -87,10 +90,10 @@ export default async function CampaignDetailPage({
           <h1>{campaign.name}</h1>
         </div>
         <div className="topbar-actions">
-          <Link href="/campaigns">Campaigns</Link>
-          <Link href={`/campaigns/${campaign.id}/edit`}>Edit</Link>
-          <Link href="/admin/suppressions">Suppressions</Link>
-          <Link href="/dashboard">Dashboard</Link>
+          <Link href="/campaigns" prefetch={false}>Campaigns</Link>
+          <Link href={`/campaigns/${campaign.id}/edit`} prefetch={false}>Edit</Link>
+          <Link href="/admin/suppressions" prefetch={false}>Suppressions</Link>
+          <Link href="/dashboard" prefetch={false}>Dashboard</Link>
         </div>
       </header>
 

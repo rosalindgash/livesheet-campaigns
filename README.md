@@ -320,6 +320,11 @@ in production, `sameSite=lax`, `path=/`, and no explicit cookie domain. Avoid
 setting a cookie domain unless the app is intentionally served from multiple
 subdomains and that behavior has been tested.
 
+If auth appears to work only while browser DevTools is open, clear the browser
+site data for the deployed domain after redeploying. DevTools often disables
+cache, so that symptom usually points to stale cached navigation data rather
+than a bad password hash.
+
 ## Security Notes
 
 - The owner password is never stored directly in `.env.local`; only a PBKDF2

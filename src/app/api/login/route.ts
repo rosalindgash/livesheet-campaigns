@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.redirect(new URL("/dashboard", request.url), { status: 303 });
+  response.headers.set("Cache-Control", "no-store, max-age=0");
   response.cookies.set(
     getOwnerSessionCookieName(),
     createOwnerSessionToken(),
@@ -38,5 +39,10 @@ export async function POST(request: NextRequest) {
 }
 
 function redirectToLogin(request: NextRequest, error: string) {
-  return NextResponse.redirect(new URL(`/login?error=${error}`, request.url), { status: 303 });
+  const response = NextResponse.redirect(new URL(`/login?error=${error}`, request.url), {
+    status: 303,
+  });
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+
+  return response;
 }

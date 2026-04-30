@@ -4,6 +4,9 @@ import { deleteCampaign, pauseCampaign, resumeCampaign } from "@/app/campaigns/a
 import { requireOwnerSession } from "@/lib/auth";
 import { listCampaigns, type Campaign } from "@/lib/campaigns";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function CampaignsPage() {
   const session = await requireOwnerSession();
   const campaigns = await listCampaigns();
@@ -17,9 +20,9 @@ export default async function CampaignsPage() {
         </div>
         <div className="topbar-actions">
           <span>{session.email}</span>
-          <Link href="/admin/suppressions">Suppressions</Link>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/campaigns/new">New campaign</Link>
+          <Link href="/admin/suppressions" prefetch={false}>Suppressions</Link>
+          <Link href="/dashboard" prefetch={false}>Dashboard</Link>
+          <Link href="/campaigns/new" prefetch={false}>New campaign</Link>
         </div>
       </header>
 
@@ -29,7 +32,7 @@ export default async function CampaignsPage() {
             <p className="eyebrow">Phase 3</p>
             <h2>Campaign management</h2>
           </div>
-          <Link className="button-link" href="/campaigns/new">
+          <Link className="button-link" href="/campaigns/new" prefetch={false}>
             Create campaign
           </Link>
         </div>
@@ -67,7 +70,7 @@ function CampaignRow({ campaign }: { campaign: Campaign }) {
   return (
     <tr>
       <td>
-        <Link href={`/campaigns/${campaign.id}`}>{campaign.name}</Link>
+        <Link href={`/campaigns/${campaign.id}`} prefetch={false}>{campaign.name}</Link>
         <span className="subtle">{campaign.sheetId ?? "Sheet ID not parsed"}</span>
       </td>
       <td>
@@ -82,8 +85,8 @@ function CampaignRow({ campaign }: { campaign: Campaign }) {
       <td>{formatOptionalDate(campaign.lastRunAt)}</td>
       <td className="action-cell">
         <div className="row-actions">
-          <Link href={`/campaigns/${campaign.id}`}>View</Link>
-          <Link href={`/campaigns/${campaign.id}/edit`}>Edit</Link>
+          <Link href={`/campaigns/${campaign.id}`} prefetch={false}>View</Link>
+          <Link href={`/campaigns/${campaign.id}/edit`} prefetch={false}>Edit</Link>
           {campaign.status === "active" ? (
             <form action={pauseCampaign}>
               <input name="campaignId" type="hidden" value={campaign.id} />

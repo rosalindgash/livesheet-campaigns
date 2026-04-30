@@ -10,6 +10,9 @@ import {
 
 import { addSuppression, removeSuppression } from "./actions";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const suppressionMessages: Record<string, string> = {
   added: "Suppression added.",
   failed: "Suppression could not be saved.",
@@ -39,8 +42,8 @@ export default async function SuppressionsPage({
         </div>
         <div className="topbar-actions">
           <span>{session.email}</span>
-          <Link href="/campaigns">Campaigns</Link>
-          <Link href="/dashboard">Dashboard</Link>
+          <Link href="/campaigns" prefetch={false}>Campaigns</Link>
+          <Link href="/dashboard" prefetch={false}>Dashboard</Link>
         </div>
       </header>
 

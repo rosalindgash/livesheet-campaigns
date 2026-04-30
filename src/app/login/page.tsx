@@ -14,6 +14,9 @@ const errorMessages: Record<string, string> = {
   "missing-password": "Enter the owner password to continue.",
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const session = await getOwnerSession();
 

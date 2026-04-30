@@ -3,6 +3,9 @@ import Link from "next/link";
 import { requireOwnerSession } from "@/lib/auth";
 import { getDashboardSnapshot } from "@/lib/dashboard-data";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const phaseCards = [
   {
     title: "Project foundation",
@@ -55,9 +58,9 @@ export default async function DashboardPage({
         </div>
         <div className="topbar-actions">
           <span>{session.email}</span>
-          <Link href="/campaigns">Campaigns</Link>
-          <Link href="/admin/suppressions">Suppressions</Link>
-          <Link href="/logout">Sign out</Link>
+          <Link href="/campaigns" prefetch={false}>Campaigns</Link>
+          <Link href="/admin/suppressions" prefetch={false}>Suppressions</Link>
+          <Link href="/logout" prefetch={false}>Sign out</Link>
         </div>
       </header>
 
@@ -86,7 +89,7 @@ export default async function DashboardPage({
             <p className="eyebrow">Campaigns</p>
             <h2>Recent campaign status</h2>
           </div>
-          <Link className="button-link" href="/campaigns/new">
+          <Link className="button-link" href="/campaigns/new" prefetch={false}>
             New campaign
           </Link>
         </div>
@@ -94,7 +97,12 @@ export default async function DashboardPage({
         {snapshot.campaigns.length > 0 ? (
           <div className="campaign-list">
             {snapshot.campaigns.slice(0, 5).map((campaign) => (
-              <Link className="campaign-list-item" href={`/campaigns/${campaign.id}`} key={campaign.id}>
+              <Link
+                className="campaign-list-item"
+                href={`/campaigns/${campaign.id}`}
+                key={campaign.id}
+                prefetch={false}
+              >
                 <div>
                   <strong>{campaign.name}</strong>
                   <span>{campaign.googleAccountEmail ?? "No Google account selected"}</span>
