@@ -3,6 +3,7 @@ import Link from "next/link";
 import { deleteCampaign, pauseCampaign, resumeCampaign } from "@/app/campaigns/actions";
 import { requireOwnerSession } from "@/lib/auth";
 import { getCampaign, type Campaign } from "@/lib/campaigns";
+import { getCampaignScheduleDetails } from "@/lib/scheduler";
 import { listSequenceSteps, type SequenceStep } from "@/lib/sequence-steps";
 import {
   COLUMN_MAPPING_FIELDS,
@@ -66,6 +67,7 @@ export default async function CampaignDetailPage({
     getCampaignColumnMapping(campaignId),
     listSequenceSteps(campaignId),
   ]);
+  const scheduleDetails = await getCampaignScheduleDetails(campaign);
   const validation = await loadSheetValidation(campaign, mapping);
   const sheetMessage = query.sheet ? sheetMessages[query.sheet] : null;
   const sequenceMessage = query.sequence ? sequenceMessages[query.sequence] : null;
@@ -114,13 +116,24 @@ export default async function CampaignDetailPage({
         </div>
 
         <div className="panel">
-          <h2>Run history placeholders</h2>
+          <h2>Run history</h2>
           <dl className="details-list">
             <Detail label="Last run" value={formatOptionalDate(campaign.lastRunAt)} />
             <Detail
               label="Last successful run"
               value={formatOptionalDate(campaign.lastSuccessfulRunAt)}
             />
+            <Detail
+              label="Last scheduled run"
+              value={formatScheduledRun(scheduleDetails.lastScheduledRun)}
+            />
+            <Detail label="Schedule" value={scheduleDetails.summary.scheduleDescription} />
+            <Detail
+              label="Current campaign time"
+              value={`${scheduleDetails.summary.localDay} ${scheduleDetails.summary.localDate} ${scheduleDetails.summary.localTime}`}
+            />
+            <Detail label="Next scheduled check" value={scheduleDetails.summary.nextDescription} />
+            <Detail label="Scheduler status" value={scheduleDetails.summary.reason} />
             <Detail label="Created" value={formatOptionalDate(campaign.createdAt)} />
             <Detail label="Updated" value={formatOptionalDate(campaign.updatedAt)} />
           </dl>
@@ -139,7 +152,7 @@ export default async function CampaignDetailPage({
           <input name="campaignId" type="hidden" value={campaign.id} />
           <div className="notice error">
             This sends real email to eligible rows in the connected Google Sheet. Use only a
-            sandbox Sheet with owner-controlled email addresses while testing Phase 7.
+            sandbox Sheet with owner-controlled email addresses while testing campaign runs.
           </div>
           <label className="field checkbox-field">
             <input name="confirmRealCampaignRun" type="checkbox" />
@@ -551,4 +564,22 @@ function formatOptionalDate(value: string | null) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function formatScheduledRun(
+  run: {
+    finished_at: string | null;
+    scheduled_date: string | null;
+    started_at: string;
+    status: string;
+  } | null,
+) {
+  if (!run) {
+    return "Never";
+  }
+
+  const finished = run.finished_at ? formatOptionalDate(run.finished_at) : "In progress";
+  const scheduledDate = run.scheduled_date ?? "unspecified date";
+
+  return `${scheduledDate} - ${run.status}; finished ${finished}`;
 }

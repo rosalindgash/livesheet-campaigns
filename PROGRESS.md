@@ -40,6 +40,10 @@ Status: complete and ready for review.
 
 Status: complete and ready for review.
 
+## Phase 8 - Scheduled Campaign Execution
+
+Status: complete and ready for review.
+
 ## Completed Work
 
 - Read `BUILD_SPEC.md` fully and created a 12-phase implementation plan.
@@ -245,6 +249,34 @@ Status: complete and ready for review.
   detection, click/open tracking, public SaaS features, and automated prospect
   scheduling out of Phase 7.
 
+## Phase 8 Completed Work
+
+- Added `POST /api/cron/run-due-campaigns`.
+- Protected the cron endpoint with `CRON_SECRET` using a bearer token or
+  `x-cron-secret` header.
+- Added scheduler logic that fetches active campaigns only.
+- Converted the current time to each campaign timezone using the campaign's
+  saved timezone.
+- Checked saved send days and send time before starting scheduled runs.
+- Added dry-run scheduler support with optional `now` override for local due
+  logic testing without sending email.
+- Reused the Phase 7 campaign runner for scheduled runs instead of duplicating
+  campaign execution, cap enforcement, suppression checks, Gmail sending, Sheet
+  writeback, and run logging.
+- Refactored the campaign runner to support `run_type = manual` and
+  `run_type = scheduled` while keeping manual `Run now` behavior unchanged.
+- Added `campaign_runs.scheduled_date` plus a unique scheduled-run index so a
+  campaign cannot start more than one scheduled run for the same campaign-local
+  date.
+- Added scheduler checks that skip campaigns already run or already in progress
+  for the scheduled date.
+- Added campaign detail schedule status showing schedule, current campaign
+  local date/time, due reason, and last scheduled run.
+- Updated README cron setup and `CRON_SECRET` usage documentation.
+- Kept multi-touch follow-up execution, reply detection, click/open tracking,
+  public SaaS features, billing, teams, and real prospect sending without
+  sandbox testing out of Phase 8.
+
 ## Changed Files
 
 - `livesheet-campaigns/.env.example`
@@ -269,6 +301,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/run-actions.ts`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/sheet-actions.ts`
 - `livesheet-campaigns/src/app/campaigns/[campaignId]/test-send-actions.ts`
+- `livesheet-campaigns/src/app/api/cron/run-due-campaigns/route.ts`
 - `livesheet-campaigns/src/app/api/google/auth/callback/route.ts`
 - `livesheet-campaigns/src/app/api/google/auth/start/route.ts`
 - `livesheet-campaigns/src/app/api/google/disconnect/route.ts`
@@ -293,6 +326,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/lib/google/state.ts`
 - `livesheet-campaigns/src/lib/html-sanitizer.ts`
 - `livesheet-campaigns/src/lib/sheets.ts`
+- `livesheet-campaigns/src/lib/scheduler.ts`
 - `livesheet-campaigns/src/lib/sequence-steps.ts`
 - `livesheet-campaigns/src/lib/supabase/server.ts`
 - `livesheet-campaigns/src/lib/templates.ts`
@@ -301,6 +335,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/supabase/migrations/202604290001_unsubscribe_tokens.sql`
 - `livesheet-campaigns/supabase/migrations/202604290002_send_history_test_marker.sql`
 - `livesheet-campaigns/supabase/migrations/202604290003_campaign_run_cap_tracking.sql`
+- `livesheet-campaigns/supabase/migrations/202604300001_scheduled_campaign_runs.sql`
 
 ## Setup Instructions
 
@@ -377,6 +412,23 @@ Verification completed in this phase:
 - `npm run build` passed on 2026-04-29 after Phase 6.
 - `npm run lint` passed on 2026-04-29 after Phase 7.
 - `npm run build` passed on 2026-04-29 after Phase 7.
+- `npm run lint` passed on 2026-04-30 after Phase 8.
+- `npm run build` passed on 2026-04-30 after Phase 8.
+- `supabase db push` applied
+  `supabase/migrations/202604300001_scheduled_campaign_runs.sql` to the
+  hosted `livesheet-campaigns` Supabase project on 2026-04-30.
+- Verified `campaign_runs.scheduled_date` is reachable through the service
+  role client.
+- Verified `POST /api/cron/run-due-campaigns?dryRun=1` rejects missing cron
+  authentication with `401`.
+- Verified `POST /api/cron/run-due-campaigns?dryRun=1` returns a dry-run JSON
+  response with valid `CRON_SECRET` and does not send email. The Demo campaign
+  was paused during this check, so no active campaigns were evaluated.
+- Manual Phase 8 scheduler test passed on 2026-04-30 using the Demo campaign
+  and a sandbox owner-controlled Sheet only: dry-run reported due, one real
+  scheduled run sent and wrote back two eligible rows, `campaign_runs` recorded
+  `run_type = scheduled`, and a repeat cron request skipped the already
+  completed scheduled date without duplicate sending.
 - `supabase db push` applied
   `supabase/migrations/202604290001_unsubscribe_tokens.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-29.
@@ -399,10 +451,10 @@ Verification completed in this phase:
   `campaign_runs`, `suppression_list`, `unsubscribe_events`, and
   `reply_events`.
 - The production build used `.env.local`, compiled successfully with Next.js
-  16.2.4 and Turbopack, completed TypeScript checks, generated all 12 static
+  16.2.4 and Turbopack, completed TypeScript checks, generated all static
   pages, and finalized route optimization.
 - Verified app routes in the build output:
-  `/`, `/_not-found`, `/api/google/auth/callback`,
+  `/`, `/_not-found`, `/api/cron/run-due-campaigns`, `/api/google/auth/callback`,
   `/api/google/auth/start`, `/api/google/disconnect`,
   `/api/unsubscribe/[token]`, `/campaigns`, `/campaigns/[campaignId]`,
   `/campaigns/[campaignId]/edit`, `/campaigns/new`, `/dashboard`, `/login`,
@@ -483,6 +535,21 @@ Manual checks after env and database setup:
   count, over-cap count, cap-limited state, sent/skipped/error counts, and run
   status.
 - Use pause/resume and confirm the status changes.
+- Confirm active campaigns show schedule details on the campaign detail page,
+  including current campaign-local time and last scheduled run.
+- Call `POST /api/cron/run-due-campaigns?dryRun=1` with the `CRON_SECRET`
+  bearer token and confirm the response reports due/not-due status without
+  sending email.
+- Optionally call the dry-run endpoint with a `now` query value that matches
+  the Demo campaign's saved send day/time and confirm it reports the Demo
+  campaign as due without sending email.
+- For an actual scheduled-send smoke test, use only the Demo campaign connected
+  to a sandbox Sheet with owner-controlled email addresses, set the campaign to
+  active, set `send_time` to the current campaign-local time, and call the cron
+  endpoint without `dryRun=1`.
+- Confirm the scheduled run creates `campaign_runs.run_type = scheduled`.
+- Confirm repeated cron calls for the same campaign-local date do not send a
+  duplicate scheduled run.
 - Delete the campaign and confirm it disappears from the list.
 - Use `Disconnect` and confirm the connected account is removed.
 - Use `Sign out` and confirm the session is cleared.
@@ -490,13 +557,10 @@ Manual checks after env and database setup:
 ## Not Implemented Yet
 
 - Automated prospect Gmail sending outside guarded manual runs.
-- Scheduler and cron routes.
-- Scheduled campaign execution.
 - Follow-up execution logic.
 - Reply detection.
 - Click/open tracking.
 
 ## Next Steps
 
-Phase 7 should implement controlled campaign execution only after Phase 6 review
-is complete.
+Phase 9 should be scoped after Phase 8 review.

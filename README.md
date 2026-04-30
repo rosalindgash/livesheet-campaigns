@@ -1,6 +1,6 @@
 # LiveSheet Campaigns
 
-Single-user Google Sheets and Gmail outreach sequencer. Phase 7 contains the
+Single-user Google Sheets and Gmail outreach sequencer. Phase 8 contains the
 app foundation, Google OAuth connection, encrypted token storage, token refresh
 handling, connected account display, disconnect, campaign CRUD, Google Sheets
 validation, worksheet/header checks, row preview, column mapping, and
@@ -8,14 +8,14 @@ non-sending saved message template management with a basic HTML body editor and
 preview rendering. It also includes owner-only Gmail test sends that render a
 saved template against a selected Sheet preview row, apply unsubscribe-link
 handling, check global suppression before sending, and persist test send history.
-Phase 7 adds guarded manual Touch 1 campaign runs that read the Sheet fresh,
+Phase 7 added guarded manual Touch 1 campaign runs that read the Sheet fresh,
 enforce campaign/global daily caps, send through Gmail, write `send_history`,
 update eligible Sheet rows after successful or failed sends, and log
-`campaign_runs`.
+`campaign_runs`. Phase 8 adds scheduled execution through a protected cron
+endpoint that reuses the same runner and duplicate-run protections.
 
-Scheduled sending, cron execution, multi-touch sequence execution, reply
-detection, click/open tracking, and public SaaS features are intentionally not
-implemented yet.
+Multi-touch sequence execution, reply detection, click/open tracking, and
+public SaaS features are intentionally not implemented yet.
 
 ## Local Setup
 
@@ -57,6 +57,7 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=http://localhost:3000/api/google/auth/callback
 TOKEN_ENCRYPTION_KEY=
+CRON_SECRET=
 ```
 
 Generate `TOKEN_ENCRYPTION_KEY` with:
@@ -65,7 +66,13 @@ Generate `TOKEN_ENCRYPTION_KEY` with:
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-6. Apply the database migration in `supabase/migrations/202604280001_initial_schema.sql`.
+Generate `CRON_SECRET` with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+```
+
+6. Apply the database migrations in `supabase/migrations`.
 Use the Supabase SQL editor, or apply it through your preferred Supabase CLI flow.
 
 7. Seed the single global settings row after the migration:
@@ -91,8 +98,50 @@ up to three touches per campaign. Body templates support basic sanitized HTML,
 and owner-only test sends can send a rendered template to `APP_OWNER_EMAIL` or
 an explicitly confirmed owner-controlled test inbox. Minimal unsubscribe links
 and global suppression records are enforced before test sends and manual
-campaign runs. Use the guarded `Run now` button only with sandbox Sheets that
-contain owner-controlled email addresses while testing.
+campaign runs. Scheduled runs use the same campaign runner as manual runs. Use
+the guarded `Run now` button and any scheduled-send tests only with sandbox
+Sheets that contain owner-controlled email addresses while testing.
+
+## Cron Configuration
+
+The scheduler endpoint is:
+
+```text
+POST /api/cron/run-due-campaigns
+```
+
+Every request must include `CRON_SECRET` as a bearer token:
+
+```http
+Authorization: Bearer your-cron-secret
+```
+
+Local dry-run check from PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:3000/api/cron/run-due-campaigns?dryRun=1" `
+  -Headers @{ Authorization = "Bearer your-cron-secret" }
+```
+
+Dry runs report which active campaigns are due without sending email. You can
+also pass `now` during dry runs to inspect due logic without waiting for the
+saved send time:
+
+```text
+/api/cron/run-due-campaigns?dryRun=1&now=2026-04-30T08:00:00-05:00
+```
+
+Production cron should call:
+
+```text
+POST https://your-domain.example/api/cron/run-due-campaigns
+Authorization: Bearer your-cron-secret
+```
+
+Actual scheduled requests without `dryRun=1` send real email for due active
+campaigns. Keep production cron secret-protected and test only with sandbox
+Sheets and owner-controlled inboxes.
 
 ## Verification
 

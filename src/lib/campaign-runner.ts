@@ -53,7 +53,28 @@ type CandidateRow = {
 
 type SendHistoryStatus = "failed" | "sent" | "skipped";
 
+export type CampaignRunType = "manual" | "scheduled";
+
+export type CampaignRunResult = {
+  runId: string | null;
+  skippedReason?: "already-started";
+  started: boolean;
+};
+
 export async function runCampaignNow(campaignId: string): Promise<void> {
+  await runCampaign(campaignId, { runType: "manual" });
+}
+
+export async function runCampaign(
+  campaignId: string,
+  {
+    runType = "manual",
+    scheduledDate = null,
+  }: {
+    runType?: CampaignRunType;
+    scheduledDate?: string | null;
+  } = {},
+): Promise<CampaignRunResult> {
   const campaign = await getCampaign(campaignId);
 
   if (!campaign.googleAccountId || !campaign.sheetId || !campaign.worksheetName) {
@@ -64,8 +85,19 @@ export async function runCampaignNow(campaignId: string): Promise<void> {
   const startedAt = new Date();
   const runId = await createCampaignRun({
     campaignId,
+    runType,
+    scheduledDate,
     startedAt,
   });
+
+  if (!runId) {
+    return {
+      runId: null,
+      skippedReason: "already-started",
+      started: false,
+    };
+  }
+
   const stats: RunStats = {
     capLimited: false,
     eligibleNotProcessedDueToCap: 0,
@@ -147,6 +179,11 @@ export async function runCampaignNow(campaignId: string): Promise<void> {
       supabase.from("campaigns").update({ last_run_at: new Date().toISOString() }).eq("id", campaignId),
     ]);
   }
+
+  return {
+    runId,
+    started: true,
+  };
 }
 
 async function processSelectedRow({
@@ -445,17 +482,22 @@ async function getGlobalDailySendCap(): Promise<number> {
 
 async function createCampaignRun({
   campaignId,
+  runType,
+  scheduledDate,
   startedAt,
 }: {
   campaignId: string;
+  runType: CampaignRunType;
+  scheduledDate: string | null;
   startedAt: Date;
-}): Promise<string> {
+}): Promise<string | null> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("campaign_runs")
     .insert({
       campaign_id: campaignId,
-      run_type: "manual",
+      run_type: runType,
+      scheduled_date: scheduledDate,
       started_at: startedAt.toISOString(),
       status: "failed",
     })
@@ -463,6 +505,10 @@ async function createCampaignRun({
     .single<{ id: string }>();
 
   if (error) {
+    if (runType === "scheduled" && error.code === "23505") {
+      return null;
+    }
+
     throw error;
   }
 
