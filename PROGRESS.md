@@ -48,6 +48,10 @@ Status: complete and ready for review.
 
 Status: complete and ready for review.
 
+## Phase 10 - Suppression Audit and Admin
+
+Status: complete and ready for review.
+
 ## Completed Work
 
 - Read `BUILD_SPEC.md` fully and created a 12-phase implementation plan.
@@ -314,6 +318,27 @@ Status: complete and ready for review.
 - Kept reply detection, click/open tracking, public SaaS features, billing,
   teams, AI writing, and CRM features out of Phase 9.
 
+## Phase 10 Completed Work
+
+- Reviewed unsubscribe and suppression coverage after Phase 9.
+- Confirmed the unsubscribe page and confirmation endpoint are still present
+  and unchanged after Phase 9.
+- Confirmed campaign runs check `suppression_list` during eligibility and again
+  immediately before Gmail sending, covering Step 1, Step 2, and Step 3.
+- Added an owner-only `/admin/suppressions` page.
+- Added manual suppression creation/upsert with email, reason, optional
+  campaign association, and notes.
+- Added suppression removal from the admin page.
+- Added a suppression-list table showing email, reason, campaign, source,
+  notes, and created date.
+- Added a recent unsubscribe-events table showing recipient email, campaign,
+  confirmation time, shortened token, and user agent.
+- Added navigation links to suppression admin from the dashboard, campaign list,
+  and campaign detail page.
+- Added `dev-server*.log` to `.gitignore` for local development logs.
+- Kept reply detection, click/open tracking, public SaaS features, billing,
+  teams, AI writing, and broader CRM features out of Phase 10.
+
 ## Changed Files
 
 - `livesheet-campaigns/.env.example`
@@ -324,6 +349,8 @@ Status: complete and ready for review.
 - `livesheet-campaigns/package-lock.json`
 - `livesheet-campaigns/package.json`
 - `livesheet-campaigns/scripts/generate-password-hash.mjs`
+- `livesheet-campaigns/src/app/admin/suppressions/actions.ts`
+- `livesheet-campaigns/src/app/admin/suppressions/page.tsx`
 - `livesheet-campaigns/src/app/dashboard/page.tsx`
 - `livesheet-campaigns/src/app/campaigns/CampaignForm.tsx`
 - `livesheet-campaigns/src/app/campaigns/actions.ts`
@@ -365,6 +392,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/src/lib/sheets.ts`
 - `livesheet-campaigns/src/lib/scheduler.ts`
 - `livesheet-campaigns/src/lib/sequence-steps.ts`
+- `livesheet-campaigns/src/lib/suppression-admin.ts`
 - `livesheet-campaigns/src/lib/supabase/server.ts`
 - `livesheet-campaigns/src/lib/templates.ts`
 - `livesheet-campaigns/src/lib/unsubscribe.ts`
@@ -478,6 +506,12 @@ Verification completed in this phase:
   and a sandbox owner-controlled Sheet only. The manual run panel processed the
   eligible Step 1 and Step 2 rows, skipped blocked rows, wrote back the
   expected Sheet statuses/stages, and recorded per-step run metadata.
+- `npm run lint` passed on 2026-04-30 after Phase 10.
+- `npm run build` passed on 2026-04-30 after Phase 10 and included
+  `/admin/suppressions` in the route output.
+- Verified a temporary `manual_suppression` row can be inserted into and
+  removed from `suppression_list` using `source = manual_admin`.
+- Manual Phase 10 suppression admin tests passed on 2026-04-30.
 - `supabase db push` applied
   `supabase/migrations/202604290001_unsubscribe_tokens.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-29.

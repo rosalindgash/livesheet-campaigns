@@ -14,7 +14,9 @@ update eligible Sheet rows after successful or failed sends, and log
 `campaign_runs`. Phase 8 adds scheduled execution through a protected cron
 endpoint that reuses the same runner and duplicate-run protections. Phase 9
 extends the shared runner to execute active Touch 1, Touch 2, and Touch 3 saved
-templates based on each Sheet row's stage and delay timing.
+templates based on each Sheet row's stage and delay timing. Phase 10 adds an
+owner-only suppression admin page for manual suppressions and unsubscribe-event
+review.
 
 Reply detection, click/open tracking, and public SaaS features are intentionally
 not implemented yet.
@@ -106,6 +108,10 @@ Sheets that contain owner-controlled email addresses while testing. Campaign
 runs can send up to three touches: Step 1 for new rows, Step 2 for rows staged
 `touch_1_sent` after the Step 2 delay has elapsed, and Step 3 for rows staged
 `touch_2_sent` after the Step 3 delay has elapsed.
+
+Use `/admin/suppressions` to add or remove manual suppressions, review blocked
+recipients, and inspect recent unsubscribe confirmations. Suppressed emails are
+blocked before campaign sending across all touch levels.
 
 ## Cron Configuration
 

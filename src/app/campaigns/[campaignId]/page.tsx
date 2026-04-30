@@ -85,6 +85,7 @@ export default async function CampaignDetailPage({
         <div className="topbar-actions">
           <Link href="/campaigns">Campaigns</Link>
           <Link href={`/campaigns/${campaign.id}/edit`}>Edit</Link>
+          <Link href="/admin/suppressions">Suppressions</Link>
           <Link href="/dashboard">Dashboard</Link>
         </div>
       </header>

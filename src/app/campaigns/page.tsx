@@ -17,6 +17,7 @@ export default async function CampaignsPage() {
         </div>
         <div className="topbar-actions">
           <span>{session.email}</span>
+          <Link href="/admin/suppressions">Suppressions</Link>
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/campaigns/new">New campaign</Link>
         </div>

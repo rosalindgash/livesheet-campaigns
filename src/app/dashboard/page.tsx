@@ -21,8 +21,8 @@ const phaseCards = [
   },
   {
     title: "Campaign engine",
-    body: "Campaign CRUD, Sheets reads, Gmail sending, scheduling, and sequences are intentionally deferred.",
-    status: "Not started",
+    body: "Campaign CRUD, Sheets reads, Gmail sending, scheduling, and multi-touch sequences are in place.",
+    status: "Complete",
   },
 ];
 
@@ -56,6 +56,7 @@ export default async function DashboardPage({
         <div className="topbar-actions">
           <span>{session.email}</span>
           <Link href="/campaigns">Campaigns</Link>
+          <Link href="/admin/suppressions">Suppressions</Link>
           <Link href="/logout">Sign out</Link>
         </div>
       </header>
@@ -68,7 +69,8 @@ export default async function DashboardPage({
             The app can connect a Google account, store OAuth tokens encrypted,
             refresh access tokens, show the connected Gmail address, and
             disconnect the account. Campaign CRUD, Sheets access, sending,
-            scheduling, and sequences are not implemented yet.
+            scheduling, and multi-touch sequences are implemented for the
+            owner-controlled workflow.
           </p>
         </div>
       </section>
