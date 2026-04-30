@@ -305,6 +305,21 @@ Production cron should call the scheduler and reply detection endpoints with
 `GET` and `Authorization: Bearer <CRON_SECRET>`. Vercel can supply that header
 automatically when `CRON_SECRET` is set.
 
+### Production Auth Troubleshooting
+
+If the deployed app accepts the owner password but protected navigation returns
+to `/login`, check the production environment variables first:
+
+- `AUTH_SECRET` must be set and stable across deployments.
+- `AUTH_PASSWORD_HASH` must be the generated hash, not the plaintext password.
+- `APP_OWNER_EMAIL` must match the intended owner account value.
+- `NEXT_PUBLIC_APP_URL` should match the deployed HTTPS app URL.
+
+The owner session is stored in an HTTP-only signed cookie with `secure` enabled
+in production, `sameSite=lax`, `path=/`, and no explicit cookie domain. Avoid
+setting a cookie domain unless the app is intentionally served from multiple
+subdomains and that behavior has been tested.
+
 ## Security Notes
 
 - The owner password is never stored directly in `.env.local`; only a PBKDF2

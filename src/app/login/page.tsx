@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { login } from "@/app/login/actions";
 import { getAuthEnvStatus, getOwnerSession } from "@/lib/auth";
 
 type LoginPageProps = {
@@ -44,7 +43,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         {error ? <div className="notice error">{error}</div> : null}
 
-        <form action={login} className="stack">
+        <form action="/api/login" method="post" className="stack">
           <label htmlFor="password">Owner password</label>
           <input
             id="password"

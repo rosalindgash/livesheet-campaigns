@@ -7,6 +7,12 @@ import { getRequiredEnvStatus, requireEnv } from "@/lib/env";
 const SESSION_COOKIE_NAME = "lsc_session";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const PASSWORD_HASH_ALGORITHM = "pbkdf2_sha256";
+const SESSION_COOKIE_BASE_OPTIONS = {
+  httpOnly: true,
+  maxAge: SESSION_TTL_SECONDS,
+  path: "/",
+  sameSite: "lax" as const,
+};
 
 export type OwnerSession = {
   email: string;
@@ -57,30 +63,17 @@ export function verifyOwnerPassword(password: string): boolean {
 }
 
 export async function setOwnerSession(): Promise<void> {
-  const email = requireEnv("APP_OWNER_EMAIL");
-  const expiresAt = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
-  const payload = Buffer.from(JSON.stringify({ email, expiresAt })).toString("base64url");
-  const signature = signPayload(payload);
   const cookieStore = await cookies();
 
-  cookieStore.set(SESSION_COOKIE_NAME, `${payload}.${signature}`, {
-    httpOnly: true,
-    maxAge: SESSION_TTL_SECONDS,
-    path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
+  cookieStore.set(SESSION_COOKIE_NAME, createOwnerSessionToken(), getOwnerSessionCookieOptions());
 }
 
 export async function clearOwnerSession(): Promise<void> {
   const cookieStore = await cookies();
 
   cookieStore.set(SESSION_COOKIE_NAME, "", {
-    httpOnly: true,
+    ...getOwnerSessionCookieOptions(),
     maxAge: 0,
-    path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
   });
 }
 
@@ -137,6 +130,26 @@ export async function requireOwnerSession(): Promise<OwnerSession> {
   }
 
   return session;
+}
+
+export function getOwnerSessionCookieName(): string {
+  return SESSION_COOKIE_NAME;
+}
+
+export function createOwnerSessionToken(): string {
+  const email = requireEnv("APP_OWNER_EMAIL");
+  const expiresAt = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
+  const payload = Buffer.from(JSON.stringify({ email, expiresAt })).toString("base64url");
+  const signature = signPayload(payload);
+
+  return `${payload}.${signature}`;
+}
+
+export function getOwnerSessionCookieOptions() {
+  return {
+    ...SESSION_COOKIE_BASE_OPTIONS,
+    secure: process.env.NODE_ENV === "production",
+  };
 }
 
 function signPayload(payload: string, secret = requireEnv("AUTH_SECRET")): string {
