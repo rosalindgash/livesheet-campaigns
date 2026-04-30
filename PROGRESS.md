@@ -56,6 +56,10 @@ Status: complete and ready for review.
 
 Status: complete and ready for review.
 
+## Phase 12 - Polish, Hardening, and Documentation
+
+Status: complete; manual review passed for the personal-use MVP.
+
 ## Completed Work
 
 - Read `BUILD_SPEC.md` fully and created a 12-phase implementation plan.
@@ -371,6 +375,34 @@ Status: complete and ready for review.
 - Kept click/open tracking, CRM features, public SaaS features, billing, teams,
   and AI writing out of Phase 11.
 
+## Phase 12 Completed Work
+
+- Refined the global visual system toward a cleaner operational SaaS style:
+  lighter neutral background, white panels, restrained green accent, tighter
+  shadows, smaller radius, and compact spacing.
+- Removed viewport-scaled and negative-letter-spaced display sizing from the
+  main headings and metrics.
+- Reduced bulky panel padding and table row spacing across the app.
+- Added campaign-detail section jump links for Overview, Sheet, Sequence,
+  Sending, and Logs.
+- Moved campaign lifecycle actions near the top of the campaign detail page.
+- Highlighted manual run controls as a guarded sending area while preserving
+  the explicit confirmation checkbox and warning.
+- Made campaign detail overview/run panels more compact.
+- Improved dashboard campaign summaries with schedule and last-run details.
+- Added a View quick action to the campaign list and tightened table scanning.
+- Made suppression admin forms/tables more compact and consistent.
+- Updated README with a local setup checklist, environment variable
+  descriptions, Google OAuth setup summary, safe testing guidance, cron usage,
+  reply-detection usage, and deployment notes.
+- Reviewed safety guardrails: manual runs still require confirmation, cron
+  endpoints still require `CRON_SECRET`, dry-run endpoints do not send/write,
+  suppression checks still occur before sending, replied recipients remain
+  skipped, and over-cap rows remain untouched.
+- Kept billing, teams, public SaaS onboarding, click/open tracking, AI writing,
+  CRM pipeline features, Airtable, Notion, and major new product features out
+  of Phase 12.
+
 ## Changed Files
 
 - `livesheet-campaigns/.env.example`
@@ -563,6 +595,17 @@ Verification completed in this phase:
 - Manual Phase 11 tests passed on 2026-04-30, including dry run, real run,
   Sheet writeback, `send_history` update, `reply_events` insert, duplicate
   protection, and follow-up skip behavior.
+- `npm run lint` passed on 2026-04-30 after Phase 12.
+- `npm run build` passed on 2026-04-30 after Phase 12.
+- Verified `POST /api/cron/run-due-campaigns?dryRun=1` still rejects missing
+  cron authentication with `401`.
+- Verified authenticated scheduled-run dry run still returns JSON without
+  sending email.
+- Verified authenticated reply-detection dry run still returns JSON without
+  writing changes.
+- Manual Phase 12 review passed on 2026-04-30 for the personal-use MVP.
+- Added `SAAS_UI_REDESIGN.md` to track the future paid-SaaS-grade UI redesign
+  need.
 - `supabase db push` applied
   `supabase/migrations/202604290001_unsubscribe_tokens.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-29.

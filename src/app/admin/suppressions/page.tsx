@@ -46,7 +46,7 @@ export default async function SuppressionsPage({
 
       {message ? <div className={isError ? "notice error" : "notice"}>{message}</div> : null}
 
-      <section className="panel">
+      <section className="panel compact">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Manual suppression</p>
@@ -102,7 +102,7 @@ export default async function SuppressionsPage({
         </div>
         {snapshot.suppressions.length > 0 ? (
           <div className="table-wrap">
-            <table>
+            <table className="summary-table">
               <thead>
                 <tr>
                   <th>Email</th>
@@ -135,7 +135,7 @@ export default async function SuppressionsPage({
         </div>
         {snapshot.unsubscribeEvents.length > 0 ? (
           <div className="table-wrap">
-            <table>
+            <table className="summary-table">
               <thead>
                 <tr>
                   <th>Email</th>

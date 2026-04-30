@@ -63,14 +63,11 @@ export default async function DashboardPage({
 
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">Phase 2</p>
-          <h2>Google account connection</h2>
+          <p className="eyebrow">Operations</p>
+          <h2>Owner outreach dashboard</h2>
           <p className="muted">
-            The app can connect a Google account, store OAuth tokens encrypted,
-            refresh access tokens, show the connected Gmail address, and
-            disconnect the account. Campaign CRUD, Sheets access, sending,
-            scheduling, and multi-touch sequences are implemented for the
-            owner-controlled workflow.
+            Monitor campaign readiness, send activity, Google connection
+            status, suppression controls, and recent runs from one place.
           </p>
         </div>
       </section>
@@ -86,8 +83,8 @@ export default async function DashboardPage({
       <section className="panel">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Phase 3</p>
-            <h2>Campaigns</h2>
+            <p className="eyebrow">Campaigns</p>
+            <h2>Recent campaign status</h2>
           </div>
           <Link className="button-link" href="/campaigns/new">
             New campaign
@@ -101,10 +98,14 @@ export default async function DashboardPage({
                 <div>
                   <strong>{campaign.name}</strong>
                   <span>{campaign.googleAccountEmail ?? "No Google account selected"}</span>
+                  <span>
+                    {campaign.sendDays.join(", ") || "No send days"} at {campaign.sendTime}
+                  </span>
                 </div>
                 <div>
                   <span className={`status-pill ${campaign.status}`}>{campaign.status}</span>
                   <span>{campaign.dailySendCap}/day</span>
+                  <span>Last run: {formatOptionalDate(campaign.lastRunAt)}</span>
                 </div>
               </Link>
             ))}
@@ -255,6 +256,14 @@ function formatDate(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function formatOptionalDate(value: string | null) {
+  if (!value) {
+    return "Never";
+  }
+
+  return formatDate(value);
 }
 
 function formatRefreshStatus(status: string) {

@@ -36,7 +36,7 @@ export default async function CampaignsPage() {
 
         {campaigns.length > 0 ? (
           <div className="table-wrap">
-            <table>
+            <table className="summary-table">
               <thead>
                 <tr>
                   <th>Name</th>
@@ -80,8 +80,9 @@ function CampaignRow({ campaign }: { campaign: Campaign }) {
         <span className="subtle">{campaign.sendDays.join(", ")}</span>
       </td>
       <td>{formatOptionalDate(campaign.lastRunAt)}</td>
-      <td>
+      <td className="action-cell">
         <div className="row-actions">
+          <Link href={`/campaigns/${campaign.id}`}>View</Link>
           <Link href={`/campaigns/${campaign.id}/edit`}>Edit</Link>
           {campaign.status === "active" ? (
             <form action={pauseCampaign}>

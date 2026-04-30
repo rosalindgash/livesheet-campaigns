@@ -100,8 +100,44 @@ export default async function CampaignDetailPage({
         <Metric label="Send time" value={campaign.sendTime} />
       </section>
 
+      <nav className="section-tabs" aria-label="Campaign sections">
+        <a href="#overview">Overview</a>
+        <a href="#sheet">Sheet</a>
+        <a href="#sequence">Sequence</a>
+        <a href="#sending">Sending</a>
+        <a href="#logs">Logs</a>
+      </nav>
+
+      <section className="panel compact">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Controls</p>
+            <h2>Campaign actions</h2>
+          </div>
+          <div className="row-actions">
+            {campaign.status === "active" ? (
+              <form action={pauseCampaign}>
+                <input name="campaignId" type="hidden" value={campaign.id} />
+                <button type="submit">Pause campaign</button>
+              </form>
+            ) : (
+              <form action={resumeCampaign}>
+                <input name="campaignId" type="hidden" value={campaign.id} />
+                <button type="submit">Resume campaign</button>
+              </form>
+            )}
+            <form action={deleteCampaign}>
+              <input name="campaignId" type="hidden" value={campaign.id} />
+              <button className="danger-button" type="submit">
+                Delete campaign
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+
       <section className="grid two">
-        <div className="panel">
+        <div className="panel compact" id="overview">
           <div className="section-heading">
             <div>
               <p className="eyebrow">Details</p>
@@ -120,7 +156,7 @@ export default async function CampaignDetailPage({
           </dl>
         </div>
 
-        <div className="panel">
+        <div className="panel compact" id="logs">
           <h2>Run history</h2>
           <dl className="details-list">
             <Detail label="Last run" value={formatOptionalDate(campaign.lastRunAt)} />
@@ -156,7 +192,7 @@ export default async function CampaignDetailPage({
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel danger-zone" id="sending">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Manual run</p>
@@ -182,7 +218,7 @@ export default async function CampaignDetailPage({
         </form>
       </section>
 
-      <section className="panel">
+      <section className="panel" id="sheet">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Google Sheets</p>
@@ -238,7 +274,7 @@ export default async function CampaignDetailPage({
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel compact">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Column mapping</p>
@@ -308,7 +344,7 @@ export default async function CampaignDetailPage({
         )}
       </section>
 
-      <section className="panel">
+      <section className="panel" id="sequence">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Saved templates</p>
@@ -327,28 +363,6 @@ export default async function CampaignDetailPage({
               step={step}
             />
           ))}
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="row-actions">
-          {campaign.status === "active" ? (
-            <form action={pauseCampaign}>
-              <input name="campaignId" type="hidden" value={campaign.id} />
-              <button type="submit">Pause campaign</button>
-            </form>
-          ) : (
-            <form action={resumeCampaign}>
-              <input name="campaignId" type="hidden" value={campaign.id} />
-              <button type="submit">Resume campaign</button>
-            </form>
-          )}
-          <form action={deleteCampaign}>
-            <input name="campaignId" type="hidden" value={campaign.id} />
-            <button className="danger-button" type="submit">
-              Delete campaign
-            </button>
-          </form>
         </div>
       </section>
     </main>

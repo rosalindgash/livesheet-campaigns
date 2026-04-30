@@ -21,7 +21,7 @@ review. Phase 11 adds basic Gmail reply detection for campaign sends.
 Click/open tracking, CRM features, public SaaS features, billing, and teams are
 intentionally not implemented yet.
 
-## Local Setup
+## Local Setup Checklist
 
 1. Install dependencies:
 
@@ -48,7 +48,7 @@ npm run auth:hash
 node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 ```
 
-5. Fill in Supabase values in `.env.local`:
+5. Fill in environment values in `.env.local`:
 
 ```env
 SUPABASE_URL=
@@ -112,6 +112,41 @@ runs can send up to three touches: Step 1 for new rows, Step 2 for rows staged
 Use `/admin/suppressions` to add or remove manual suppressions, review blocked
 recipients, and inspect recent unsubscribe confirmations. Suppressed emails are
 blocked before campaign sending across all touch levels.
+
+## Environment Variables
+
+- `NEXT_PUBLIC_APP_URL`: Public app URL used to build unsubscribe links.
+- `SUPABASE_URL`: Supabase project URL.
+- `SUPABASE_ANON_KEY`: Supabase anon key.
+- `SUPABASE_SERVICE_ROLE_KEY`: Server-only Supabase service role key.
+- `APP_OWNER_EMAIL`: Single owner email used for login identity and safe test-send defaults.
+- `AUTH_PASSWORD_HASH`: PBKDF2 password hash from `npm run auth:hash`.
+- `AUTH_SECRET`: Random secret used to sign owner session cookies.
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID.
+- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret.
+- `GOOGLE_REDIRECT_URI`: OAuth callback URL, usually
+  `http://localhost:3000/api/google/auth/callback` locally.
+- `TOKEN_ENCRYPTION_KEY`: 32-byte base64 key used to encrypt Google OAuth tokens.
+- `CRON_SECRET`: Bearer token required by cron endpoints.
+- `DEFAULT_TIMEZONE`: Fallback campaign/settings timezone.
+- `DEFAULT_GLOBAL_DAILY_SEND_CAP`: Fallback global daily send cap.
+
+## Google OAuth Summary
+
+Create a Google OAuth client, add the local callback URL to authorized redirect
+URIs, and request Gmail/Sheets consent from the owner Google account. The app
+uses Google Sheets access for validation/writeback, Gmail send access for
+campaign/test sends, and Gmail modify access for reply-thread inspection.
+
+## Safe Testing
+
+- Use the Demo campaign and sandbox Sheets with owner-controlled inboxes only.
+- Use template test sends to verify rendering without Sheet writeback.
+- Use the top Manual Run panel only when you intend to send real campaign email.
+- Keep the manual run confirmation checkbox in place.
+- Use cron `dryRun=1` before real scheduled or reply-detection checks.
+- Keep Demo paused when not actively testing.
+- Verify suppression and replied rows before testing follow-ups.
 
 ## Cron Configuration
 
@@ -188,6 +223,14 @@ Sheet row when row information is available.
 npm run lint
 npm run build
 ```
+
+## Deployment Notes
+
+Apply all Supabase migrations before deploying. Configure all production
+environment variables in the hosting provider, especially
+`SUPABASE_SERVICE_ROLE_KEY`, `TOKEN_ENCRYPTION_KEY`, `AUTH_SECRET`, Google OAuth
+values, and `CRON_SECRET`. Production cron should call the scheduler and reply
+detection endpoints with `Authorization: Bearer <CRON_SECRET>`.
 
 ## Security Notes
 
