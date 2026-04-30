@@ -44,6 +44,10 @@ Status: complete and ready for review.
 
 Status: complete and ready for review.
 
+## Phase 9 - Multi-Touch Sequence Execution
+
+Status: complete and ready for review.
+
 ## Completed Work
 
 - Read `BUILD_SPEC.md` fully and created a 12-phase implementation plan.
@@ -277,6 +281,39 @@ Status: complete and ready for review.
   public SaaS features, billing, teams, and real prospect sending without
   sandbox testing out of Phase 8.
 
+## Phase 9 Completed Work
+
+- Extended the shared campaign runner used by manual and scheduled runs to
+  support active saved sequence steps 1, 2, and 3.
+- Added fresh-Sheet row selection that chooses one appropriate touch per row
+  based on row stage and never sends multiple touches to the same row in one
+  run.
+- Kept Step 1 eligibility for rows with blank/new stage and blank/new/active
+  status.
+- Added Step 2 eligibility for rows staged `touch_1_sent` whose `last_sent_at`
+  is at least the active Step 2 delay days old.
+- Added Step 3 eligibility for rows staged `touch_2_sent` whose `last_sent_at`
+  is at least the active Step 3 delay days old.
+- Excluded invalid emails, paused rows, replied rows, unsubscribed rows, and
+  suppressed emails from eligibility.
+- Kept a second suppression check immediately before Gmail sending so a newly
+  suppressed selected recipient is skipped without sending.
+- Used the correct saved subject/body template for the selected sequence step,
+  including existing variable, conditional, HTML normalization, and unsubscribe
+  rendering behavior.
+- Updated successful Sheet writeback for Step 1, Step 2, and Step 3, including
+  status, stage, `last_sent_at`, `last_touch_sent`, and blank
+  `error_message`.
+- Preserved Phase 7/8 cap behavior across all touches: over-cap eligible rows
+  are not attempted, do not receive `send_history`, and are not written back to
+  the Sheet.
+- Added `campaign_runs.run_metadata` with per-step selected, sent, skipped, and
+  failed counters.
+- Added per-step run summaries to `campaign_runs.error_summary` for quick
+  inspection.
+- Kept reply detection, click/open tracking, public SaaS features, billing,
+  teams, AI writing, and CRM features out of Phase 9.
+
 ## Changed Files
 
 - `livesheet-campaigns/.env.example`
@@ -336,6 +373,7 @@ Status: complete and ready for review.
 - `livesheet-campaigns/supabase/migrations/202604290002_send_history_test_marker.sql`
 - `livesheet-campaigns/supabase/migrations/202604290003_campaign_run_cap_tracking.sql`
 - `livesheet-campaigns/supabase/migrations/202604300001_scheduled_campaign_runs.sql`
+- `livesheet-campaigns/supabase/migrations/202604300002_campaign_run_step_metadata.sql`
 
 ## Setup Instructions
 
@@ -429,6 +467,17 @@ Verification completed in this phase:
   scheduled run sent and wrote back two eligible rows, `campaign_runs` recorded
   `run_type = scheduled`, and a repeat cron request skipped the already
   completed scheduled date without duplicate sending.
+- `npm run lint` passed on 2026-04-30 after Phase 9.
+- `npm run build` passed on 2026-04-30 after Phase 9.
+- `supabase db push` applied
+  `supabase/migrations/202604300002_campaign_run_step_metadata.sql` to the
+  hosted `livesheet-campaigns` Supabase project on 2026-04-30.
+- Verified `campaign_runs.run_metadata` is reachable through the service role
+  client.
+- Manual Phase 9 multi-touch test passed on 2026-04-30 using the Demo campaign
+  and a sandbox owner-controlled Sheet only. The manual run panel processed the
+  eligible Step 1 and Step 2 rows, skipped blocked rows, wrote back the
+  expected Sheet statuses/stages, and recorded per-step run metadata.
 - `supabase db push` applied
   `supabase/migrations/202604290001_unsubscribe_tokens.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-29.
@@ -550,6 +599,29 @@ Manual checks after env and database setup:
 - Confirm the scheduled run creates `campaign_runs.run_type = scheduled`.
 - Confirm repeated cron calls for the same campaign-local date do not send a
   duplicate scheduled run.
+- In the Demo sandbox Sheet, prepare owner-controlled rows for Step 1, Step 2,
+  and Step 3.
+- For Step 1, use a valid owner-controlled email with blank/new status and
+  blank/new stage.
+- For Step 2, use stage `touch_1_sent`, a valid old `last_sent_at` timestamp
+  older than the Step 2 delay, and an active saved Step 2 template.
+- For Step 3, use stage `touch_2_sent`, a valid old `last_sent_at` timestamp
+  older than the Step 3 delay, and an active saved Step 3 template.
+- Add rows with `replied_at`, `unsubscribed_at`, invalid email, and paused
+  status and confirm they are not selected.
+- Run the campaign manually or through the scheduler using only the Demo
+  sandbox Sheet.
+- Confirm each eligible row receives only one touch in that run.
+- Confirm Step 1 writeback uses `status = touch_1_sent`, `stage =
+  touch_1_sent`, and `last_touch_sent = 1`.
+- Confirm Step 2 writeback uses `status = touch_2_sent`, `stage =
+  touch_2_sent`, and `last_touch_sent = 2`.
+- Confirm Step 3 writeback uses `status = touch_3_sent`, `stage = completed`,
+  and `last_touch_sent = 3`.
+- Confirm `send_history.sequence_step_id` matches the saved template used for
+  each sent touch.
+- Confirm `campaign_runs.run_metadata.stepStats` reports selected/sent counts
+  for Steps 1, 2, and 3.
 - Delete the campaign and confirm it disappears from the list.
 - Use `Disconnect` and confirm the connected account is removed.
 - Use `Sign out` and confirm the session is cleared.
@@ -557,7 +629,6 @@ Manual checks after env and database setup:
 ## Not Implemented Yet
 
 - Automated prospect Gmail sending outside guarded manual runs.
-- Follow-up execution logic.
 - Reply detection.
 - Click/open tracking.
 

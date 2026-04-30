@@ -23,10 +23,17 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 const TOUCH_1_SENT = "touch_1_sent";
+const TOUCH_2_SENT = "touch_2_sent";
+const TOUCH_3_SENT = "touch_3_sent";
+const COMPLETED = "completed";
 
-type ActiveStep1Template = {
+type SequenceStepNumber = 1 | 2 | 3;
+
+type ActiveSequenceStep = {
   bodyTemplate: string;
+  delayDaysAfterPreviousStep: number;
   id: string;
+  stepNumber: SequenceStepNumber;
   subjectTemplate: string;
 };
 
@@ -43,15 +50,24 @@ type RunStats = {
   emailsSkipped: number;
   errors: string[];
   rowsScanned: number;
+  stepStats: Record<SequenceStepNumber, StepRunStats>;
 };
 
 type CandidateRow = {
   email: string;
   row: SheetDataRow;
   snapshot: Record<string, unknown>;
+  step: ActiveSequenceStep;
 };
 
 type SendHistoryStatus = "failed" | "sent" | "skipped";
+
+type StepRunStats = {
+  failed: number;
+  selected: number;
+  sent: number;
+  skipped: number;
+};
 
 export type CampaignRunType = "manual" | "scheduled";
 
@@ -107,12 +123,13 @@ export async function runCampaign(
     emailsSkipped: 0,
     errors: [],
     rowsScanned: 0,
+    stepStats: getEmptyStepStats(),
   };
 
   try {
-    const [mapping, step, sheetRows, globalDailySendCap] = await Promise.all([
+    const [mapping, steps, sheetRows, globalDailySendCap] = await Promise.all([
       getCampaignColumnMapping(campaignId),
-      getActiveStep1Template(campaignId),
+      getActiveSequenceSteps(campaignId),
       fetchCampaignSheetRows({
         googleAccountId: campaign.googleAccountId,
         sheetId: campaign.sheetId,
@@ -121,7 +138,7 @@ export async function runCampaign(
       getGlobalDailySendCap(),
     ]);
 
-    if (!step) {
+    if (!steps[1]) {
       throw new Error("Active Step 1 template is required before running this campaign.");
     }
 
@@ -131,10 +148,11 @@ export async function runCampaign(
       throw new Error(`Sheet is missing required columns: ${missingRequiredColumns.join(", ")}`);
     }
 
-    const candidates = getCandidateRows({
+    const candidates = await getCandidateRows({
       headers: sheetRows.headers,
       mapping,
       rows: sheetRows.rows,
+      steps,
     });
     const capacity = await getAvailableCapacity({
       campaign,
@@ -148,6 +166,7 @@ export async function runCampaign(
     stats.emailsSelectedForRun = selectedRows.length;
     stats.eligibleNotProcessedDueToCap = Math.max(0, candidates.length - selectedRows.length);
     stats.capLimited = stats.eligibleNotProcessedDueToCap > 0;
+    countSelectedSteps(stats, selectedRows);
 
     for (const candidate of selectedRows) {
       await processSelectedRow({
@@ -156,7 +175,6 @@ export async function runCampaign(
         headers: sheetRows.headers,
         mapping,
         stats,
-        step,
       });
     }
 
@@ -199,17 +217,18 @@ async function processSelectedRow({
   headers: string[];
   mapping: CampaignColumnMapping;
   stats: RunStats;
-  step: ActiveStep1Template;
+  step?: ActiveSequenceStep;
 }) {
   if (!campaign.googleAccountId || !campaign.sheetId || !campaign.worksheetName) {
     throw new Error("Campaign Google Sheet configuration is missing.");
   }
 
+  const selectedStep = step ?? candidate.step;
   const token = generateUnsubscribeToken();
   const context = buildTemplateContext(headers, candidate.row.values);
-  const subject = renderTemplate(step.subjectTemplate, context);
+  const subject = renderTemplate(selectedStep.subjectTemplate, context);
   const body = renderTemplateBodyWithUnsubscribe({
-    bodyTemplate: step.bodyTemplate,
+    bodyTemplate: selectedStep.bodyTemplate,
     context,
     unsubscribeUrl: buildUnsubscribeUrl(token),
   });
@@ -217,6 +236,7 @@ async function processSelectedRow({
 
   if (missingColumns.length > 0) {
     stats.emailsSkipped += 1;
+    stats.stepStats[selectedStep.stepNumber].skipped += 1;
     await insertSendHistory({
       bodyRendered: body.output,
       campaignId: campaign.id,
@@ -224,7 +244,7 @@ async function processSelectedRow({
       recipientEmail: candidate.email,
       recipientRowNumber: candidate.row.rowNumber,
       recipientSnapshot: candidate.snapshot,
-      sequenceStepId: step.id,
+      sequenceStepId: selectedStep.id,
       status: "skipped",
       subjectRendered: subject.output,
       token,
@@ -236,6 +256,7 @@ async function processSelectedRow({
 
   if (suppressionStatus.suppressed) {
     stats.emailsSkipped += 1;
+    stats.stepStats[selectedStep.stepNumber].skipped += 1;
     await insertSendHistory({
       bodyRendered: body.output,
       campaignId: campaign.id,
@@ -243,7 +264,7 @@ async function processSelectedRow({
       recipientEmail: candidate.email,
       recipientRowNumber: candidate.row.rowNumber,
       recipientSnapshot: candidate.snapshot,
-      sequenceStepId: step.id,
+      sequenceStepId: selectedStep.id,
       status: "skipped",
       subjectRendered: subject.output,
       token,
@@ -267,7 +288,7 @@ async function processSelectedRow({
       recipientEmail: candidate.email,
       recipientRowNumber: candidate.row.rowNumber,
       recipientSnapshot: candidate.snapshot,
-      sequenceStepId: step.id,
+      sequenceStepId: selectedStep.id,
       status: "sent",
       subjectRendered: subject.output,
       token,
@@ -279,19 +300,15 @@ async function processSelectedRow({
       mapping,
       rowNumber: candidate.row.rowNumber,
       sheetId: campaign.sheetId,
-      values: {
-        errorMessage: "",
-        lastSentAt: new Date().toISOString(),
-        lastTouchSent: "1",
-        stage: TOUCH_1_SENT,
-        status: TOUCH_1_SENT,
-      },
+      values: getSuccessfulSheetWriteback(selectedStep.stepNumber),
       worksheetName: campaign.worksheetName,
     });
     stats.emailsSent += 1;
+    stats.stepStats[selectedStep.stepNumber].sent += 1;
   } catch (error) {
     const message = truncate(formatError(error), 300);
     stats.errors.push(`Row ${candidate.row.rowNumber}: ${message}`);
+    stats.stepStats[selectedStep.stepNumber].failed += 1;
     await insertSendHistory({
       bodyRendered: body.output,
       campaignId: campaign.id,
@@ -299,7 +316,7 @@ async function processSelectedRow({
       recipientEmail: candidate.email,
       recipientRowNumber: candidate.row.rowNumber,
       recipientSnapshot: candidate.snapshot,
-      sequenceStepId: step.id,
+      sequenceStepId: selectedStep.id,
       status: "failed",
       subjectRendered: subject.output,
       token,
@@ -319,23 +336,32 @@ async function processSelectedRow({
   }
 }
 
-function getCandidateRows({
+async function getCandidateRows({
   headers,
   mapping,
   rows,
+  steps,
 }: {
   headers: string[];
   mapping: CampaignColumnMapping;
   rows: SheetDataRow[];
-}): CandidateRow[] {
+  steps: Partial<Record<SequenceStepNumber, ActiveSequenceStep>>;
+}): Promise<CandidateRow[]> {
   const candidates: CandidateRow[] = [];
 
   for (const row of rows) {
     const email = normalizeEmail(getMappedValue(headers, row.values, mapping.emailColumn));
     const status = normalizeCell(getMappedValue(headers, row.values, mapping.statusColumn));
     const stage = normalizeCell(getMappedValue(headers, row.values, mapping.stageColumn));
+    const lastSentAt = getMappedValue(headers, row.values, mapping.lastSentAtColumn);
     const unsubscribedAt = normalizeCell(getMappedValue(headers, row.values, mapping.unsubscribedAtColumn));
     const repliedAt = normalizeCell(getMappedValue(headers, row.values, mapping.repliedAtColumn));
+    const step = getEligibleStep({
+      lastSentAt,
+      stage,
+      status,
+      steps,
+    });
 
     if (!email || !isEmail(email)) {
       continue;
@@ -345,11 +371,13 @@ function getCandidateRows({
       continue;
     }
 
-    if (!["", "new", "active"].includes(status)) {
+    if (!step) {
       continue;
     }
 
-    if (!["", "new"].includes(stage)) {
+    const suppressionStatus = await getSendSuppressionStatus(email);
+
+    if (suppressionStatus.suppressed) {
       continue;
     }
 
@@ -360,10 +388,54 @@ function getCandidateRows({
         rowNumber: row.rowNumber,
         values: Object.fromEntries(headers.map((header, index) => [header, row.values[index] ?? ""])),
       },
+      step,
     });
   }
 
   return candidates;
+}
+
+function getEligibleStep({
+  lastSentAt,
+  stage,
+  status,
+  steps,
+}: {
+  lastSentAt: string;
+  stage: string;
+  status: string;
+  steps: Partial<Record<SequenceStepNumber, ActiveSequenceStep>>;
+}): ActiveSequenceStep | null {
+  if (status === "paused") {
+    return null;
+  }
+
+  if ((stage === "" || stage === "new") && ["", "new", "active"].includes(status)) {
+    return steps[1] ?? null;
+  }
+
+  if (stage === TOUCH_1_SENT && steps[2] && hasDelayElapsed(lastSentAt, steps[2].delayDaysAfterPreviousStep)) {
+    return steps[2];
+  }
+
+  if (stage === TOUCH_2_SENT && steps[3] && hasDelayElapsed(lastSentAt, steps[3].delayDaysAfterPreviousStep)) {
+    return steps[3];
+  }
+
+  return null;
+}
+
+function hasDelayElapsed(lastSentAt: string, delayDays: number): boolean {
+  const lastSentTime = Date.parse(lastSentAt);
+
+  if (Number.isNaN(lastSentTime)) {
+    return false;
+  }
+
+  const elapsedMs = Date.now() - lastSentTime;
+  const delayMs = delayDays * 24 * 60 * 60 * 1000;
+
+  return elapsedMs >= delayMs;
 }
 
 async function sendCampaignMessageWithRefresh({
@@ -400,29 +472,48 @@ async function sendCampaignMessageWithRefresh({
   }
 }
 
-async function getActiveStep1Template(campaignId: string): Promise<ActiveStep1Template | null> {
+async function getActiveSequenceSteps(
+  campaignId: string,
+): Promise<Partial<Record<SequenceStepNumber, ActiveSequenceStep>>> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("sequence_steps")
-    .select("id, subject_template, body_template")
+    .select("id, step_number, subject_template, body_template, delay_days_after_previous_step")
     .eq("campaign_id", campaignId)
-    .eq("step_number", 1)
     .eq("is_active", true)
-    .maybeSingle<{ id: string; subject_template: string; body_template: string }>();
+    .in("step_number", [1, 2, 3])
+    .returns<
+      Array<{
+        body_template: string;
+        delay_days_after_previous_step: number;
+        id: string;
+        step_number: number;
+        subject_template: string;
+      }>
+    >();
 
   if (error) {
     throw error;
   }
 
-  if (!data) {
-    return null;
-  }
+  return (data ?? []).reduce<Partial<Record<SequenceStepNumber, ActiveSequenceStep>>>(
+    (steps, row) => {
+      if (!isSequenceStepNumber(row.step_number)) {
+        return steps;
+      }
 
-  return {
-    bodyTemplate: data.body_template,
-    id: data.id,
-    subjectTemplate: data.subject_template,
-  };
+      steps[row.step_number] = {
+        bodyTemplate: row.body_template,
+        delayDaysAfterPreviousStep: row.delay_days_after_previous_step,
+        id: row.id,
+        stepNumber: row.step_number,
+        subjectTemplate: row.subject_template,
+      };
+
+      return steps;
+    },
+    {},
+  );
 }
 
 async function getAvailableCapacity({
@@ -533,6 +624,9 @@ async function updateCampaignRun(
       error_summary: buildErrorSummary(stats),
       errors_count: stats.errors.length,
       finished_at: new Date().toISOString(),
+      run_metadata: {
+        stepStats: stats.stepStats,
+      },
       rows_scanned: stats.rowsScanned,
       status,
     })
@@ -633,6 +727,7 @@ function isEmail(value: string): boolean {
 
 function buildErrorSummary(stats: RunStats): string | null {
   const parts = [
+    buildStepSummary(stats),
     ...stats.errors.slice(0, 5),
     stats.capLimited
       ? `${stats.eligibleNotProcessedDueToCap} eligible row(s) were not processed due to send caps.`
@@ -640,6 +735,72 @@ function buildErrorSummary(stats: RunStats): string | null {
   ].filter((part): part is string => Boolean(part));
 
   return parts.length > 0 ? parts.join(" ") : null;
+}
+
+function buildStepSummary(stats: RunStats): string {
+  return ([1, 2, 3] as const)
+    .map((stepNumber) => {
+      const stepStats = stats.stepStats[stepNumber];
+
+      return `Step ${stepNumber}: selected ${stepStats.selected}, sent ${stepStats.sent}, skipped ${stepStats.skipped}, failed ${stepStats.failed}.`;
+    })
+    .join(" ");
+}
+
+function countSelectedSteps(stats: RunStats, selectedRows: CandidateRow[]) {
+  for (const candidate of selectedRows) {
+    stats.stepStats[candidate.step.stepNumber].selected += 1;
+  }
+}
+
+function getEmptyStepStats(): Record<SequenceStepNumber, StepRunStats> {
+  return {
+    1: { failed: 0, selected: 0, sent: 0, skipped: 0 },
+    2: { failed: 0, selected: 0, sent: 0, skipped: 0 },
+    3: { failed: 0, selected: 0, sent: 0, skipped: 0 },
+  };
+}
+
+function getSuccessfulSheetWriteback(stepNumber: SequenceStepNumber): {
+  errorMessage: string;
+  lastSentAt: string;
+  lastTouchSent: string;
+  stage: string;
+  status: string;
+} {
+  const lastSentAt = new Date().toISOString();
+
+  if (stepNumber === 1) {
+    return {
+      errorMessage: "",
+      lastSentAt,
+      lastTouchSent: "1",
+      stage: TOUCH_1_SENT,
+      status: TOUCH_1_SENT,
+    };
+  }
+
+  if (stepNumber === 2) {
+    return {
+      errorMessage: "",
+      lastSentAt,
+      lastTouchSent: "2",
+      stage: TOUCH_2_SENT,
+      status: TOUCH_2_SENT,
+    };
+  }
+
+  return {
+    errorMessage: "",
+    lastSentAt,
+    lastTouchSent: "3",
+    stage: COMPLETED,
+    status: TOUCH_3_SENT,
+  };
+}
+
+function isSequenceStepNumber(value: number): value is SequenceStepNumber {
+  return value === 1 || value === 2 || value === 3;
 }
 
 function formatError(error: unknown): string {

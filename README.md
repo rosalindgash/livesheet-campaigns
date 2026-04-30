@@ -1,6 +1,6 @@
 # LiveSheet Campaigns
 
-Single-user Google Sheets and Gmail outreach sequencer. Phase 8 contains the
+Single-user Google Sheets and Gmail outreach sequencer. Phase 9 contains the
 app foundation, Google OAuth connection, encrypted token storage, token refresh
 handling, connected account display, disconnect, campaign CRUD, Google Sheets
 validation, worksheet/header checks, row preview, column mapping, and
@@ -12,10 +12,12 @@ Phase 7 added guarded manual Touch 1 campaign runs that read the Sheet fresh,
 enforce campaign/global daily caps, send through Gmail, write `send_history`,
 update eligible Sheet rows after successful or failed sends, and log
 `campaign_runs`. Phase 8 adds scheduled execution through a protected cron
-endpoint that reuses the same runner and duplicate-run protections.
+endpoint that reuses the same runner and duplicate-run protections. Phase 9
+extends the shared runner to execute active Touch 1, Touch 2, and Touch 3 saved
+templates based on each Sheet row's stage and delay timing.
 
-Multi-touch sequence execution, reply detection, click/open tracking, and
-public SaaS features are intentionally not implemented yet.
+Reply detection, click/open tracking, and public SaaS features are intentionally
+not implemented yet.
 
 ## Local Setup
 
@@ -100,7 +102,10 @@ an explicitly confirmed owner-controlled test inbox. Minimal unsubscribe links
 and global suppression records are enforced before test sends and manual
 campaign runs. Scheduled runs use the same campaign runner as manual runs. Use
 the guarded `Run now` button and any scheduled-send tests only with sandbox
-Sheets that contain owner-controlled email addresses while testing.
+Sheets that contain owner-controlled email addresses while testing. Campaign
+runs can send up to three touches: Step 1 for new rows, Step 2 for rows staged
+`touch_1_sent` after the Step 2 delay has elapsed, and Step 3 for rows staged
+`touch_2_sent` after the Step 3 delay has elapsed.
 
 ## Cron Configuration
 

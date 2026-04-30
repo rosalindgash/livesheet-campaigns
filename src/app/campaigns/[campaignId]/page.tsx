@@ -144,7 +144,7 @@ export default async function CampaignDetailPage({
         <div className="section-heading">
           <div>
             <p className="eyebrow">Manual run</p>
-            <h2>Run Touch 1 now</h2>
+            <h2>Run eligible touches now</h2>
           </div>
         </div>
         {runMessage ? <div className="notice">{runMessage}</div> : null}
@@ -458,7 +458,8 @@ function SequenceTemplateCard({
         </label>
 
         <p className="muted">
-          Test sends render the selected row but send only to the test recipient above.
+          Test sends render this template with the selected row, send only to the test
+          recipient above, and do not write back to the Sheet.
         </p>
 
         <div className="form-actions">
