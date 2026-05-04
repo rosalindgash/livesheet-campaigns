@@ -4,6 +4,7 @@ import { requireOwnerSession } from "@/lib/auth";
 import {
   getSuppressionAdminSnapshot,
   SUPPRESSION_REASONS,
+  type BounceEventEntry,
   type SuppressionListEntry,
   type UnsubscribeEventEntry,
 } from "@/lib/suppression-admin";
@@ -132,6 +133,39 @@ export default async function SuppressionsPage({
       <section className="panel">
         <div className="section-heading">
           <div>
+            <p className="eyebrow">Bounce handling</p>
+            <h2>Recent bounces</h2>
+          </div>
+        </div>
+        {snapshot.bounceEvents.length > 0 ? (
+          <div className="table-wrap">
+            <table className="summary-table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Campaign</th>
+                  <th>Action</th>
+                  <th>Status</th>
+                  <th>Detected</th>
+                  <th>Source</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {snapshot.bounceEvents.map((event) => (
+                  <BounceEventRow event={event} key={event.id} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted">No Gmail bounces detected yet.</p>
+        )}
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
             <p className="eyebrow">Unsubscribe events</p>
             <h2>Recent confirmations</h2>
           </div>
@@ -160,6 +194,20 @@ export default async function SuppressionsPage({
         )}
       </section>
     </main>
+  );
+}
+
+function BounceEventRow({ event }: { event: BounceEventEntry }) {
+  return (
+    <tr>
+      <td>{event.recipientEmail ?? "Needs review"}</td>
+      <td>{event.campaignName ?? "Unmatched"}</td>
+      <td>{formatAction(event.action, event.confidence)}</td>
+      <td>{event.statusCode ?? ""}</td>
+      <td>{formatDate(event.detectedAt)}</td>
+      <td>{shortenToken(event.rawSourceMessageId)}</td>
+      <td>{event.reason ?? ""}</td>
+    </tr>
   );
 }
 
@@ -194,6 +242,14 @@ function UnsubscribeEventRow({ event }: { event: UnsubscribeEventEntry }) {
       <td>{event.userAgent ?? ""}</td>
     </tr>
   );
+}
+
+function formatAction(action: BounceEventEntry["action"], confidence: BounceEventEntry["confidence"]): string {
+  if (action === "suppressed") {
+    return "Suppressed";
+  }
+
+  return confidence === "low" ? "Manual review" : "Logged";
 }
 
 function formatReason(reason: string): string {

@@ -31,9 +31,34 @@ export type UnsubscribeEventEntry = {
   userAgent: string | null;
 };
 
+export type BounceEventEntry = {
+  action: "manual_review" | "suppressed";
+  campaignId: string | null;
+  campaignName: string | null;
+  confidence: "high" | "low";
+  detectedAt: string;
+  id: string;
+  rawSourceMessageId: string;
+  reason: string | null;
+  recipientEmail: string | null;
+  statusCode: string | null;
+};
+
 type CampaignNameRow = {
   id: string;
   name: string;
+};
+
+type BounceEventRow = {
+  action: "manual_review" | "suppressed";
+  campaign_id: string | null;
+  confidence: "high" | "low";
+  detected_at: string;
+  id: string;
+  raw_source_message_id: string;
+  reason: string | null;
+  recipient_email: string | null;
+  status_code: string | null;
 };
 
 type SuppressionListRow = {
@@ -56,12 +81,13 @@ type UnsubscribeEventRow = {
 };
 
 export async function getSuppressionAdminSnapshot(): Promise<{
+  bounceEvents: BounceEventEntry[];
   campaigns: CampaignNameRow[];
   suppressions: SuppressionListEntry[];
   unsubscribeEvents: UnsubscribeEventEntry[];
 }> {
   const supabase = createSupabaseAdminClient();
-  const [campaignsResult, suppressionsResult, unsubscribeEventsResult] = await Promise.all([
+  const [campaignsResult, suppressionsResult, unsubscribeEventsResult, bounceEventsResult] = await Promise.all([
     supabase
       .from("campaigns")
       .select("id, name")
@@ -79,10 +105,21 @@ export async function getSuppressionAdminSnapshot(): Promise<{
       .order("unsubscribed_at", { ascending: false })
       .limit(100)
       .returns<UnsubscribeEventRow[]>(),
+    supabase
+      .from("bounce_events")
+      .select(
+        "id, campaign_id, recipient_email, raw_source_message_id, reason, status_code, confidence, action, detected_at",
+      )
+      .order("detected_at", { ascending: false })
+      .limit(100)
+      .returns<BounceEventRow[]>(),
   ]);
 
   const firstError =
-    campaignsResult.error ?? suppressionsResult.error ?? unsubscribeEventsResult.error;
+    campaignsResult.error ??
+    suppressionsResult.error ??
+    unsubscribeEventsResult.error ??
+    bounceEventsResult.error;
 
   if (firstError) {
     throw firstError;
@@ -93,6 +130,18 @@ export async function getSuppressionAdminSnapshot(): Promise<{
   );
 
   return {
+    bounceEvents: (bounceEventsResult.data ?? []).map((event) => ({
+      action: event.action,
+      campaignId: event.campaign_id,
+      campaignName: event.campaign_id ? campaignNames.get(event.campaign_id) ?? null : null,
+      confidence: event.confidence,
+      detectedAt: event.detected_at,
+      id: event.id,
+      rawSourceMessageId: event.raw_source_message_id,
+      reason: event.reason,
+      recipientEmail: event.recipient_email,
+      statusCode: event.status_code,
+    })),
     campaigns: campaignsResult.data ?? [],
     suppressions: (suppressionsResult.data ?? []).map((entry) => ({
       campaignId: entry.campaign_id,

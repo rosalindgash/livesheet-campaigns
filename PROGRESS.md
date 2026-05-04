@@ -65,6 +65,39 @@ Status: complete; manual review passed for the personal-use MVP.
 Status: complete; deployed through GitHub/Vercel and Supabase migrations
 applied.
 
+## 2026-05-04 Automated Bounce Handling
+
+Status: implemented locally and Supabase migration applied; GitHub push and
+production verification pending in this work session.
+
+- Added Phase 1 automated Gmail bounce polling through
+  `/api/cron/process-bounces`.
+- Added Gmail message search and full-message fetch helpers for inbox polling.
+- The bounce poller searches likely Gmail delivery-failure notices from
+  Mail Delivery Subsystem, mailer-daemon, postmaster, and common delivery
+  failure subject lines.
+- Added conservative bounce parsing for failed recipient email, reason,
+  diagnostic code, enhanced SMTP/status code, original message ID, and Gmail
+  source message ID.
+- Added recipient matching through recent `send_history` rows because contacts
+  are represented by connected Sheet rows plus send history in the current app
+  architecture.
+- Added high-confidence auto-suppression for permanent failures only when a
+  single failed recipient can be matched to an existing campaign send.
+- Low-confidence bounces are recorded as `manual_review` instead of suppressing
+  the recipient.
+- High-confidence bounces upsert `suppression_list.reason = bounce`, mark the
+  matched `send_history` row as `bounced`, and write `status = bounced` plus an
+  error message back to the connected Sheet when row metadata is available.
+- Added `bounce_events` to store recipient email, campaign ID, send history ID,
+  reason, raw Gmail source message ID, Gmail thread ID, status code,
+  diagnostic code, confidence, action, metadata, and timestamps.
+- Added a unique index on `bounce_events.raw_source_message_id` so the same
+  Gmail bounce notice is not processed twice.
+- Added an admin-visible Recent bounces table to `/admin/suppressions`.
+- Added an hourly Vercel Cron entry for `/api/cron/process-bounces`.
+- Verified locally with `npm run lint` and `npm run build`.
+
 ## 2026-05-04 Completed Work
 
 - Investigated why the active `Scholium Outreach` campaign did not run at the

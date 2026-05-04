@@ -14,6 +14,45 @@ type GmailThreadResponse = {
   messages?: GmailThreadMessage[];
 };
 
+type GmailMessageListResponse = {
+  error?: {
+    message?: string;
+  };
+  messages?: Array<{
+    id?: string;
+    threadId?: string;
+  }>;
+  nextPageToken?: string;
+  resultSizeEstimate?: number;
+};
+
+type GmailMessageResponse = GmailMessage & {
+  error?: {
+    message?: string;
+  };
+};
+
+export type GmailMessagePart = {
+  body?: {
+    data?: string;
+  };
+  filename?: string;
+  headers?: Array<{
+    name?: string;
+    value?: string;
+  }>;
+  mimeType?: string;
+  parts?: GmailMessagePart[];
+};
+
+export type GmailMessage = {
+  id?: string;
+  internalDate?: string;
+  payload?: GmailMessagePart;
+  snippet?: string;
+  threadId?: string;
+};
+
 export type GmailThreadMessage = {
   id?: string;
   internalDate?: string;
@@ -80,6 +119,74 @@ export async function sendGmailMessage({
 
 export function isGmailAuthError(error: unknown): error is GmailApiError {
   return error instanceof GmailApiError && (error.status === 401 || error.status === 403);
+}
+
+export async function listGmailMessages({
+  accessToken,
+  maxResults = 25,
+  pageToken,
+  query,
+}: {
+  accessToken: string;
+  maxResults?: number;
+  pageToken?: string;
+  query: string;
+}): Promise<{
+  messages: Array<{ id: string; threadId: string | null }>;
+  nextPageToken: string | null;
+}> {
+  const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
+
+  url.searchParams.set("q", query);
+  url.searchParams.set("maxResults", String(maxResults));
+
+  if (pageToken) {
+    url.searchParams.set("pageToken", pageToken);
+  }
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const data = (await response.json()) as GmailMessageListResponse;
+
+  if (!response.ok || data.error) {
+    throw new GmailApiError(data.error?.message ?? "Gmail message search request failed.", response.status);
+  }
+
+  return {
+    messages:
+      data.messages
+        ?.filter((message): message is { id: string; threadId?: string } => Boolean(message.id))
+        .map((message) => ({ id: message.id, threadId: message.threadId ?? null })) ?? [],
+    nextPageToken: data.nextPageToken ?? null,
+  };
+}
+
+export async function fetchGmailMessage({
+  accessToken,
+  messageId,
+}: {
+  accessToken: string;
+  messageId: string;
+}): Promise<GmailMessage> {
+  const url = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}`);
+
+  url.searchParams.set("format", "full");
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const data = (await response.json()) as GmailMessageResponse;
+
+  if (!response.ok || data.error) {
+    throw new GmailApiError(data.error?.message ?? "Gmail message request failed.", response.status);
+  }
+
+  return data;
 }
 
 export async function fetchGmailThread({
