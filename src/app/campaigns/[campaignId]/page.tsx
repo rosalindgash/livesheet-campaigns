@@ -51,6 +51,7 @@ const runMessages: Record<string, string> = {
   completed: "Manual campaign run finished. Check run logs, send history, and the Sheet for row updates.",
   "confirmation-required": "Confirm the manual run before sending real email to eligible Sheet rows.",
   failed: "Manual campaign run could not start. Check campaign setup and try again.",
+  "outside-send-day": "Manual campaign run was not started because today is not one of this campaign's selected send days.",
 };
 
 export const dynamic = "force-dynamic";
@@ -156,6 +157,10 @@ export default async function CampaignDetailPage({
             <Detail label="Worksheet/tab" value={campaign.worksheetName ?? "Not set"} />
             <Detail label="Timezone" value={campaign.timezone} />
             <Detail label="Send days" value={campaign.sendDays.join(", ")} />
+            <Detail
+              label="Touch caps"
+              value={`Touch 1: ${campaign.touch1DailyCap}/day; Touch 2: ${campaign.touch2DailyCap}/day; Touch 3: ${campaign.touch3DailyCap}/day`}
+            />
           </dl>
         </div>
 

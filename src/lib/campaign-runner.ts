@@ -1,4 +1,4 @@
-import { getCampaign, type Campaign } from "@/lib/campaigns";
+import { getCampaign, type Campaign, type SendDay } from "@/lib/campaigns";
 import { getValidGoogleAccessToken, refreshGoogleAccessToken } from "@/lib/google/accounts";
 import { isGmailAuthError, sendGmailMessage, type GmailSendResult } from "@/lib/google/gmail";
 import {
@@ -26,8 +26,19 @@ const TOUCH_1_SENT = "touch_1_sent";
 const TOUCH_2_SENT = "touch_2_sent";
 const TOUCH_3_SENT = "touch_3_sent";
 const COMPLETED = "completed";
+const SEQUENCE_STEP_NUMBERS = [1, 2, 3] as const;
 
 type SequenceStepNumber = 1 | 2 | 3;
+
+const DAY_MAP: Record<string, SendDay> = {
+  Fri: "FRI",
+  Mon: "MON",
+  Sat: "SAT",
+  Sun: "SUN",
+  Thu: "THU",
+  Tue: "TUE",
+  Wed: "WED",
+};
 
 type ActiveSequenceStep = {
   bodyTemplate: string;
@@ -75,16 +86,23 @@ type StepRunStats = {
   skipped: number;
 };
 
+type StepDailyCaps = Record<SequenceStepNumber, number>;
+
+type AvailableCapacity = {
+  stepCaps: StepDailyCaps;
+  total: number;
+};
+
 export type CampaignRunType = "manual" | "scheduled";
 
 export type CampaignRunResult = {
   runId: string | null;
-  skippedReason?: "already-started";
+  skippedReason?: "already-started" | "outside-send-day";
   started: boolean;
 };
 
-export async function runCampaignNow(campaignId: string): Promise<void> {
-  await runCampaign(campaignId, { runType: "manual" });
+export async function runCampaignNow(campaignId: string): Promise<CampaignRunResult> {
+  return runCampaign(campaignId, { runType: "manual" });
 }
 
 export async function runCampaign(
@@ -98,6 +116,14 @@ export async function runCampaign(
   } = {},
 ): Promise<CampaignRunResult> {
   const campaign = await getCampaign(campaignId);
+
+  if (runType === "manual" && !isSelectedSendDay(campaign, new Date())) {
+    return {
+      runId: null,
+      skippedReason: "outside-send-day",
+      started: false,
+    };
+  }
 
   if (!campaign.googleAccountId || !campaign.sheetId || !campaign.worksheetName) {
     throw new Error("Campaign must have a Google account, Sheet ID, and worksheet before running.");
@@ -166,9 +192,9 @@ export async function runCampaign(
       campaign,
       globalDailySendCap: globalSendSettings.dailySendCap,
       globalTimezone: globalSendSettings.timezone,
+      steps,
     });
-    const availableCapacity = Math.max(0, capacity);
-    const selectedRows = candidates.slice(0, availableCapacity);
+    const selectedRows = selectCandidatesForRun(candidates, capacity);
 
     stats.rowsScanned = sheetRows.rows.length;
     stats.eligibleRowsFound = candidates.length;
@@ -550,17 +576,19 @@ async function getAvailableCapacity({
   campaign,
   globalDailySendCap,
   globalTimezone,
+  steps,
 }: {
   campaign: Campaign;
   globalDailySendCap: number;
   globalTimezone: string;
-}): Promise<number> {
+  steps: Partial<Record<SequenceStepNumber, ActiveSequenceStep>>;
+}): Promise<AvailableCapacity> {
   const supabase = createSupabaseAdminClient();
   const now = new Date();
   const campaignDay = getLocalDayRangeUtc(now, campaign.timezone);
   const globalDay = getLocalDayRangeUtc(now, globalTimezone);
 
-  const [campaignSentResult, globalSentResult] = await Promise.all([
+  const [campaignSentResult, globalSentResult, stepSentResult] = await Promise.all([
     supabase
       .from("send_history")
       .select("id", { count: "exact", head: true })
@@ -576,18 +604,104 @@ async function getAvailableCapacity({
       .eq("status", "sent")
       .gte("sent_at", globalDay.start.toISOString())
       .lt("sent_at", globalDay.end.toISOString()),
+    supabase
+      .from("send_history")
+      .select("sequence_step_id")
+      .eq("campaign_id", campaign.id)
+      .eq("send_type", "campaign")
+      .eq("status", "sent")
+      .gte("sent_at", campaignDay.start.toISOString())
+      .lt("sent_at", campaignDay.end.toISOString())
+      .returns<Array<{ sequence_step_id: string | null }>>(),
   ]);
 
-  const firstError = campaignSentResult.error ?? globalSentResult.error;
+  const firstError = campaignSentResult.error ?? globalSentResult.error ?? stepSentResult.error;
 
   if (firstError) {
     throw firstError;
   }
 
-  return Math.min(
-    Math.max(0, campaign.dailySendCap - (campaignSentResult.count ?? 0)),
-    Math.max(0, globalDailySendCap - (globalSentResult.count ?? 0)),
+  const sentByStep = getSentCountsByStep(stepSentResult.data ?? [], steps);
+
+  return {
+    stepCaps: {
+      1: Math.max(0, campaign.touch1DailyCap - sentByStep[1]),
+      2: Math.max(0, campaign.touch2DailyCap - sentByStep[2]),
+      3: Math.max(0, campaign.touch3DailyCap - sentByStep[3]),
+    },
+    total: Math.min(
+      Math.max(0, campaign.dailySendCap - (campaignSentResult.count ?? 0)),
+      Math.max(0, globalDailySendCap - (globalSentResult.count ?? 0)),
+    ),
+  };
+}
+
+function selectCandidatesForRun(
+  candidates: CandidateRow[],
+  capacity: AvailableCapacity,
+): CandidateRow[] {
+  const selected: CandidateRow[] = [];
+  let totalRemaining = capacity.total;
+
+  for (const stepNumber of SEQUENCE_STEP_NUMBERS) {
+    let stepRemaining = Math.min(capacity.stepCaps[stepNumber], totalRemaining);
+
+    if (stepRemaining <= 0) {
+      continue;
+    }
+
+    for (const candidate of candidates) {
+      if (candidate.step.stepNumber !== stepNumber) {
+        continue;
+      }
+
+      selected.push(candidate);
+      stepRemaining -= 1;
+      totalRemaining -= 1;
+
+      if (stepRemaining <= 0 || totalRemaining <= 0) {
+        break;
+      }
+    }
+
+    if (totalRemaining <= 0) {
+      break;
+    }
+  }
+
+  return selected;
+}
+
+function getSentCountsByStep(
+  rows: Array<{ sequence_step_id: string | null }>,
+  steps: Partial<Record<SequenceStepNumber, ActiveSequenceStep>>,
+): StepDailyCaps {
+  const stepById = new Map(
+    SEQUENCE_STEP_NUMBERS.flatMap((stepNumber) => {
+      const step = steps[stepNumber];
+
+      return step ? [[step.id, stepNumber] as const] : [];
+    }),
   );
+  const counts = getEmptyStepDailyCaps();
+
+  for (const row of rows) {
+    const stepNumber = row.sequence_step_id ? stepById.get(row.sequence_step_id) : null;
+
+    if (stepNumber) {
+      counts[stepNumber] += 1;
+    }
+  }
+
+  return counts;
+}
+
+function getEmptyStepDailyCaps(): StepDailyCaps {
+  return {
+    1: 0,
+    2: 0,
+    3: 0,
+  };
 }
 
 async function getGlobalSendSettings(): Promise<GlobalSendSettings> {
@@ -625,6 +739,21 @@ function getLocalDayRangeUtc(now: Date, timeZone: string): { end: Date; start: D
   );
 
   return { end, start };
+}
+
+function isSelectedSendDay(campaign: Campaign, now: Date): boolean {
+  const day = getLocalSendDay(now, campaign.timezone);
+
+  return campaign.sendDays.includes(day);
+}
+
+function getLocalSendDay(date: Date, timeZone: string): SendDay {
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+  }).format(date);
+
+  return DAY_MAP[weekday] ?? "MON";
 }
 
 function getLocalDateParts(date: Date, timeZone: string): { day: number; month: number; year: number } {

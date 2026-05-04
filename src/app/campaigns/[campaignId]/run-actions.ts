@@ -16,15 +16,24 @@ export async function runCampaignNowAction(formData: FormData) {
     redirect(`/campaigns/${campaignId}?run=confirmation-required`);
   }
 
-  try {
-    await runCampaignNow(campaignId);
-  } catch {
+  const result = await runManualCampaign(campaignId);
+
+  if (!result.started && result.skippedReason === "outside-send-day") {
     revalidateCampaign(campaignId);
-    redirect(`/campaigns/${campaignId}?run=failed`);
+    redirect(`/campaigns/${campaignId}?run=outside-send-day`);
   }
 
   revalidateCampaign(campaignId);
   redirect(`/campaigns/${campaignId}?run=completed`);
+}
+
+async function runManualCampaign(campaignId: string) {
+  try {
+    return await runCampaignNow(campaignId);
+  } catch {
+    revalidateCampaign(campaignId);
+    redirect(`/campaigns/${campaignId}?run=failed`);
+  }
 }
 
 function readRequiredString(formData: FormData, key: string): string {

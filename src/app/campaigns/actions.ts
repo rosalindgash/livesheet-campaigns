@@ -24,6 +24,9 @@ type CampaignPayload = {
   worksheet_name: string;
   status: CampaignStatus;
   daily_send_cap: number;
+  touch_1_daily_cap: number;
+  touch_2_daily_cap: number;
+  touch_3_daily_cap: number;
   timezone: string;
   send_time: string;
   send_days: SendDay[];
@@ -104,12 +107,19 @@ async function setCampaignStatus(formData: FormData, status: CampaignStatus) {
 function parseCampaignPayload(formData: FormData): CampaignPayload {
   const sheetUrl = readRequiredString(formData, "sheetUrl");
   const dailySendCap = Number.parseInt(readRequiredString(formData, "dailySendCap"), 10);
+  const touch1DailyCap = Number.parseInt(readRequiredString(formData, "touch1DailyCap"), 10);
+  const touch2DailyCap = Number.parseInt(readRequiredString(formData, "touch2DailyCap"), 10);
+  const touch3DailyCap = Number.parseInt(readRequiredString(formData, "touch3DailyCap"), 10);
   const status = readRequiredString(formData, "status");
   const sendTime = readRequiredString(formData, "sendTime");
   const sendDays = formData.getAll("sendDays").filter((value): value is string => typeof value === "string");
 
   if (!Number.isSafeInteger(dailySendCap) || dailySendCap < 1) {
     throw new Error("Daily campaign send cap must be a positive integer.");
+  }
+
+  if (![touch1DailyCap, touch2DailyCap, touch3DailyCap].every((cap) => Number.isSafeInteger(cap) && cap >= 0)) {
+    throw new Error("Touch daily caps must be zero or positive integers.");
   }
 
   if (!isCampaignStatus(status)) {
@@ -133,6 +143,9 @@ function parseCampaignPayload(formData: FormData): CampaignPayload {
     worksheet_name: readRequiredString(formData, "worksheetName"),
     status,
     daily_send_cap: dailySendCap,
+    touch_1_daily_cap: touch1DailyCap,
+    touch_2_daily_cap: touch2DailyCap,
+    touch_3_daily_cap: touch3DailyCap,
     timezone: readRequiredString(formData, "timezone"),
     send_time: sendTime,
     send_days: sendDays,

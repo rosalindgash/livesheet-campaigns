@@ -19,6 +19,9 @@ export type Campaign = {
   worksheetName: string | null;
   status: CampaignStatus;
   dailySendCap: number;
+  touch1DailyCap: number;
+  touch2DailyCap: number;
+  touch3DailyCap: number;
   timezone: string;
   sendTime: string;
   sendDays: SendDay[];
@@ -48,6 +51,9 @@ type CampaignRow = {
   worksheet_name: string | null;
   status: CampaignStatus;
   daily_send_cap: number;
+  touch_1_daily_cap: number;
+  touch_2_daily_cap: number;
+  touch_3_daily_cap: number;
   timezone: string;
   send_time: string;
   send_days: unknown;
@@ -72,7 +78,7 @@ export async function listCampaigns(): Promise<Campaign[]> {
     supabase
       .from("campaigns")
       .select(
-        "id, name, description, google_account_id, sheet_url, sheet_id, worksheet_name, status, daily_send_cap, timezone, send_time, send_days, last_run_at, last_successful_run_at, created_at, updated_at",
+        "id, name, description, google_account_id, sheet_url, sheet_id, worksheet_name, status, daily_send_cap, touch_1_daily_cap, touch_2_daily_cap, touch_3_daily_cap, timezone, send_time, send_days, last_run_at, last_successful_run_at, created_at, updated_at",
       )
       .order("created_at", { ascending: false })
       .returns<CampaignRow[]>(),
@@ -92,7 +98,7 @@ export async function getCampaign(campaignId: string): Promise<Campaign> {
     supabase
       .from("campaigns")
       .select(
-        "id, name, description, google_account_id, sheet_url, sheet_id, worksheet_name, status, daily_send_cap, timezone, send_time, send_days, last_run_at, last_successful_run_at, created_at, updated_at",
+        "id, name, description, google_account_id, sheet_url, sheet_id, worksheet_name, status, daily_send_cap, touch_1_daily_cap, touch_2_daily_cap, touch_3_daily_cap, timezone, send_time, send_days, last_run_at, last_successful_run_at, created_at, updated_at",
       )
       .eq("id", campaignId)
       .maybeSingle<CampaignRow>(),
@@ -190,6 +196,9 @@ function mapCampaignRow(row: CampaignRow, googleAccounts: GoogleAccountOption[])
     worksheetName: row.worksheet_name,
     status: row.status,
     dailySendCap: row.daily_send_cap,
+    touch1DailyCap: row.touch_1_daily_cap,
+    touch2DailyCap: row.touch_2_daily_cap,
+    touch3DailyCap: row.touch_3_daily_cap,
     timezone: row.timezone,
     sendTime: formatSendTime(row.send_time),
     sendDays: parseSendDays(row.send_days),

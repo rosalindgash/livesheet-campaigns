@@ -50,7 +50,7 @@ const DEFAULT_SEQUENCE_STEPS: Record<SequenceStepNumber, Omit<SequenceStep, "id"
     name: "Touch 2",
     subjectTemplate: "",
     bodyTemplate: "",
-    delayDaysAfterPreviousStep: 4,
+    delayDaysAfterPreviousStep: 5,
     stageRequired: "touch_1_sent",
     stageAfterSend: "touch_2_sent",
     isActive: true,

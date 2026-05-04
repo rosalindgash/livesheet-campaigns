@@ -94,6 +94,42 @@ export function CampaignForm({ action, campaign, options, submitLabel }: Campaig
       </label>
 
       <label className="field">
+        <span>Touch 1 daily cap</span>
+        <input
+          name="touch1DailyCap"
+          required
+          min={0}
+          step={1}
+          type="number"
+          defaultValue={campaign?.touch1DailyCap ?? 20}
+        />
+      </label>
+
+      <label className="field">
+        <span>Touch 2 daily cap</span>
+        <input
+          name="touch2DailyCap"
+          required
+          min={0}
+          step={1}
+          type="number"
+          defaultValue={campaign?.touch2DailyCap ?? 20}
+        />
+      </label>
+
+      <label className="field">
+        <span>Touch 3 daily cap</span>
+        <input
+          name="touch3DailyCap"
+          required
+          min={0}
+          step={1}
+          type="number"
+          defaultValue={campaign?.touch3DailyCap ?? 0}
+        />
+      </label>
+
+      <label className="field">
         <span>Timezone</span>
         <input
           name="timezone"
