@@ -95,7 +95,13 @@ production verification pending in this work session.
 - Added a unique index on `bounce_events.raw_source_message_id` so the same
   Gmail bounce notice is not processed twice.
 - Added an admin-visible Recent bounces table to `/admin/suppressions`.
-- Added an hourly Vercel Cron entry for `/api/cron/process-bounces`.
+- Added a manual `/api/cron/process-bounces` cron endpoint.
+- Wired scheduled bounce polling into the existing
+  `/api/cron/check-replies` Vercel Cron job to stay within current Vercel
+  Hobby cron limits while still processing bounces periodically.
+- Confirmed the first GitHub-triggered Vercel redeploy failed after adding a
+  third hourly cron, then changed the implementation back to the existing two
+  Vercel Cron entries.
 - Verified locally with `npm run lint` and `npm run build`.
 
 ## 2026-05-04 Completed Work

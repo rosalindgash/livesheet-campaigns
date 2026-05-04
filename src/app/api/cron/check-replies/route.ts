@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { processGmailBounces } from "@/lib/bounce-detection";
 import { rejectUnauthorizedCronRequest } from "@/lib/cron-auth";
 import { checkCampaignReplies } from "@/lib/reply-detection";
 
@@ -14,9 +15,16 @@ async function handleCheckReplies(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const dryRun = searchParams.get("dryRun") === "1" || searchParams.get("dry_run") === "1";
-  const result = await checkCampaignReplies({ dryRun });
+  const [replyResult, bounceResult] = await Promise.all([
+    checkCampaignReplies({ dryRun }),
+    processGmailBounces({ dryRun }),
+  ]);
 
-  return NextResponse.json(result);
+  return NextResponse.json({
+    bounces: bounceResult,
+    dryRun,
+    replies: replyResult,
+  });
 }
 
 export async function GET(request: NextRequest) {
