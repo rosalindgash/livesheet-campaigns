@@ -39,6 +39,12 @@ type ActiveSequenceStep = {
 
 type AppSettingsRow = {
   global_daily_send_cap: number | null;
+  timezone: string | null;
+};
+
+type GlobalSendSettings = {
+  dailySendCap: number;
+  timezone: string;
 };
 
 type RunStats = {
@@ -127,7 +133,7 @@ export async function runCampaign(
   };
 
   try {
-    const [mapping, steps, sheetRows, globalDailySendCap] = await Promise.all([
+    const [mapping, steps, sheetRows, globalSendSettings] = await Promise.all([
       getCampaignColumnMapping(campaignId),
       getActiveSequenceSteps(campaignId),
       fetchCampaignSheetRows({
@@ -135,7 +141,7 @@ export async function runCampaign(
         sheetId: campaign.sheetId,
         worksheetName: campaign.worksheetName,
       }),
-      getGlobalDailySendCap(),
+      getGlobalSendSettings(),
     ]);
     const repliedRecipients = await getDetectedReplyRecipients(campaignId);
 
@@ -158,7 +164,8 @@ export async function runCampaign(
     });
     const capacity = await getAvailableCapacity({
       campaign,
-      globalDailySendCap,
+      globalDailySendCap: globalSendSettings.dailySendCap,
+      globalTimezone: globalSendSettings.timezone,
     });
     const availableCapacity = Math.max(0, capacity);
     const selectedRows = candidates.slice(0, availableCapacity);
@@ -542,13 +549,16 @@ async function getActiveSequenceSteps(
 async function getAvailableCapacity({
   campaign,
   globalDailySendCap,
+  globalTimezone,
 }: {
   campaign: Campaign;
   globalDailySendCap: number;
+  globalTimezone: string;
 }): Promise<number> {
   const supabase = createSupabaseAdminClient();
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const campaignDay = getLocalDayRangeUtc(now, campaign.timezone);
+  const globalDay = getLocalDayRangeUtc(now, globalTimezone);
 
   const [campaignSentResult, globalSentResult] = await Promise.all([
     supabase
@@ -557,13 +567,15 @@ async function getAvailableCapacity({
       .eq("campaign_id", campaign.id)
       .eq("send_type", "campaign")
       .eq("status", "sent")
-      .gte("sent_at", startOfToday.toISOString()),
+      .gte("sent_at", campaignDay.start.toISOString())
+      .lt("sent_at", campaignDay.end.toISOString()),
     supabase
       .from("send_history")
       .select("id", { count: "exact", head: true })
       .eq("send_type", "campaign")
       .eq("status", "sent")
-      .gte("sent_at", startOfToday.toISOString()),
+      .gte("sent_at", globalDay.start.toISOString())
+      .lt("sent_at", globalDay.end.toISOString()),
   ]);
 
   const firstError = campaignSentResult.error ?? globalSentResult.error;
@@ -578,11 +590,11 @@ async function getAvailableCapacity({
   );
 }
 
-async function getGlobalDailySendCap(): Promise<number> {
+async function getGlobalSendSettings(): Promise<GlobalSendSettings> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("app_settings")
-    .select("global_daily_send_cap")
+    .select("global_daily_send_cap, timezone")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle<AppSettingsRow>();
@@ -591,7 +603,81 @@ async function getGlobalDailySendCap(): Promise<number> {
     throw error;
   }
 
-  return data?.global_daily_send_cap ?? Number.parseInt(process.env.DEFAULT_GLOBAL_DAILY_SEND_CAP ?? "70", 10);
+  return {
+    dailySendCap:
+      data?.global_daily_send_cap ??
+      Number.parseInt(process.env.DEFAULT_GLOBAL_DAILY_SEND_CAP ?? "70", 10),
+    timezone: data?.timezone ?? process.env.DEFAULT_TIMEZONE ?? "America/Chicago",
+  };
+}
+
+function getLocalDayRangeUtc(now: Date, timeZone: string): { end: Date; start: Date } {
+  const localDate = getLocalDateParts(now, timeZone);
+  const start = localDateTimeToUtc(localDate, timeZone);
+  const nextLocalDate = new Date(Date.UTC(localDate.year, localDate.month - 1, localDate.day + 1));
+  const end = localDateTimeToUtc(
+    {
+      day: nextLocalDate.getUTCDate(),
+      month: nextLocalDate.getUTCMonth() + 1,
+      year: nextLocalDate.getUTCFullYear(),
+    },
+    timeZone,
+  );
+
+  return { end, start };
+}
+
+function getLocalDateParts(date: Date, timeZone: string): { day: number; month: number; year: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone,
+    year: "numeric",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return {
+    day: Number.parseInt(values.day, 10),
+    month: Number.parseInt(values.month, 10),
+    year: Number.parseInt(values.year, 10),
+  };
+}
+
+function localDateTimeToUtc(
+  localDate: { day: number; month: number; year: number },
+  timeZone: string,
+): Date {
+  const guessedUtc = new Date(Date.UTC(localDate.year, localDate.month - 1, localDate.day));
+  const firstOffset = getTimeZoneOffsetMs(guessedUtc, timeZone);
+  const firstUtc = new Date(guessedUtc.getTime() - firstOffset);
+  const secondOffset = getTimeZoneOffsetMs(firstUtc, timeZone);
+
+  return new Date(guessedUtc.getTime() - secondOffset);
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    month: "2-digit",
+    second: "2-digit",
+    timeZone,
+    year: "numeric",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const hour = values.hour === "24" ? "00" : values.hour;
+  const localTimeAsUtc = Date.UTC(
+    Number.parseInt(values.year, 10),
+    Number.parseInt(values.month, 10) - 1,
+    Number.parseInt(values.day, 10),
+    Number.parseInt(hour, 10),
+    Number.parseInt(values.minute, 10),
+    Number.parseInt(values.second, 10),
+  );
+
+  return localTimeAsUtc - date.getTime();
 }
 
 async function createCampaignRun({
