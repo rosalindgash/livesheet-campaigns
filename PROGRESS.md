@@ -67,8 +67,8 @@ applied.
 
 ## 2026-05-04 Automated Bounce Handling
 
-Status: implemented locally and Supabase migration applied; GitHub push and
-production verification pending in this work session.
+Status: complete; Supabase migration applied, GitHub push completed, Vercel
+redeployed, and production bounce smoke test passed.
 
 - Added Phase 1 automated Gmail bounce polling through
   `/api/cron/process-bounces`.
@@ -102,6 +102,29 @@ production verification pending in this work session.
 - Confirmed the first GitHub-triggered Vercel redeploy failed after adding a
   third hourly cron, then changed the implementation back to the existing two
   Vercel Cron entries.
+- Applied Supabase migration `202605040003_bounce_events.sql` to the hosted
+  project.
+- Pushed commits:
+  `7cb1759 Add Gmail bounce handling cron` and
+  `90554f0 Run bounce checks from existing cron`.
+- Confirmed the Vercel deployment for `90554f0` completed successfully.
+- Manually triggered production `/api/cron/process-bounces`; it checked one
+  Gmail account with no errors.
+- Sent an intentional smoke-test message to
+  `livesheet-bounce-test-1777920167958@gmail.com` from the connected Gmail
+  account and recorded it in `send_history`.
+- Re-ran production `/api/cron/process-bounces` and confirmed it detected the
+  Gmail DSN, parsed recipient
+  `livesheet-bounce-test-1777920167958@gmail.com`, status code `5.1.1`, and
+  the Gmail no-such-user reason.
+- Confirmed the smoke-test bounce inserted `bounce_events` row
+  `6ca59882-fc69-44a8-9fa8-27ed9f32e13b`, upserted a `suppression_list` row
+  with reason `bounce`, and updated matched `send_history` row
+  `45e2d68b-e700-4d13-ba6d-b04839c3c586` to status `bounced`.
+- Confirmed unauthenticated production access to `/admin/suppressions`
+  redirects to `/login`; direct admin-page visual verification still requires
+  the production owner password or a production browser session. The underlying
+  admin data query was verified through the database rows above.
 - Verified locally with `npm run lint` and `npm run build`.
 
 ## 2026-05-04 Completed Work
