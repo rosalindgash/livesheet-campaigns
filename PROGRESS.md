@@ -60,6 +60,68 @@ Status: complete and ready for review.
 
 Status: complete; manual review passed for the personal-use MVP.
 
+## 2026-05-04 Operational Fixes
+
+Status: complete; deployed through GitHub/Vercel and Supabase migrations
+applied.
+
+## 2026-05-04 Completed Work
+
+- Investigated why the active `Scholium Outreach` campaign did not run at the
+  scheduled time. Verified the campaign row was active, configured for
+  `MON-FRI` at `07:00` America/Chicago, due at the current campaign-local
+  time, and had no existing scheduled or manual `campaign_runs`.
+- Identified that the scheduler endpoint existed but there was no production
+  cron registration file, so the route was not being invoked automatically.
+- Added `vercel.json` with Vercel Cron entries for
+  `/api/cron/run-due-campaigns` and `/api/cron/check-replies`.
+- Confirmed the cron auth route accepts Vercel's
+  `Authorization: Bearer <CRON_SECRET>` header format and still supports
+  `x-cron-secret` for local/manual calls.
+- Added Vercel-visible log lines to `/api/cron/run-due-campaigns` for accepted,
+  rejected, and completed cron requests.
+- Fixed daily cap accounting to count only real campaign sends
+  (`send_type = campaign`) and to use campaign/app timezone day boundaries
+  rather than the server's local day.
+- Confirmed the first Vercel redeploy failed because the initial cron
+  schedules (`*/15` and `*/30`) exceeded the current Vercel plan's cron
+  frequency limits.
+- Changed Vercel cron schedules to once-per-weekday:
+  `/api/cron/run-due-campaigns` at `0 13 * * 1-5` and
+  `/api/cron/check-replies` at `0 14 * * 1-5`.
+- Added campaign-level per-touch daily cap fields:
+  `touch_1_daily_cap`, `touch_2_daily_cap`, and `touch_3_daily_cap`.
+- Updated campaign create/edit settings so per-touch caps are explicit
+  campaign options rather than hard-coded runner constants.
+- Updated the campaign runner to bucket eligible rows by sequence step and
+  apply each campaign's saved per-touch caps before sending.
+- Preserved the overall campaign daily cap and global daily cap as safety
+  ceilings above the per-touch caps.
+- Ensured unused Touch 2 or Touch 3 capacity does not roll into Touch 1.
+- Added manual-run enforcement of campaign selected send days, so `Run now`
+  will not start on a day not selected in the campaign day picker.
+- Updated the manual-run UI message for non-send-day manual run attempts.
+- Changed the default Touch 2 delay for newly generated default sequence
+  settings from 4 to 5 calendar days. The send-day picker remains the source of
+  truth for whether a due follow-up can actually send on a given day.
+- Verified the existing `Scholium Outreach` sequence already had Touch 2 delay
+  set to 5.
+- Applied Supabase migration
+  `202605040001_campaign_step_daily_caps.sql` to the hosted project.
+- Applied Supabase migration
+  `202605040002_drop_campaign_step_cap_defaults.sql` to remove database
+  defaults for future campaign touch caps; future campaigns must set these
+  values explicitly in campaign settings.
+- Confirmed the existing `Scholium Outreach` campaign retained saved caps:
+  total daily cap 40, Touch 1 cap 20, Touch 2 cap 20, and Touch 3 cap 0.
+- Pushed commits:
+  `b2cdf8f Fix scheduled campaign cron execution`,
+  `1600499 Use Vercel-compatible cron schedules`,
+  `ea2d8d8 Add per-touch campaign send caps`, and
+  `c39970b Require explicit touch cap settings`.
+- Confirmed Vercel redeploys succeeded after the compatible cron and
+  per-touch-cap commits.
+
 ## Completed Work
 
 - Read `BUILD_SPEC.md` fully and created a 12-phase implementation plan.
@@ -606,6 +668,21 @@ Verification completed in this phase:
 - Manual Phase 12 review passed on 2026-04-30 for the personal-use MVP.
 - Added `SAAS_UI_REDESIGN.md` to track the future paid-SaaS-grade UI redesign
   need.
+- `npm run lint` passed on 2026-05-04 after the scheduled-campaign cron fix,
+  daily-cap timezone fix, per-touch campaign cap implementation, and explicit
+  touch-cap setting cleanup.
+- `npx tsc --noEmit` passed on 2026-05-04 after the scheduled-campaign cron
+  fix, daily-cap timezone fix, per-touch campaign cap implementation, and
+  explicit touch-cap setting cleanup.
+- `supabase db push` applied
+  `supabase/migrations/202605040001_campaign_step_daily_caps.sql` to the
+  hosted `livesheet-campaigns` Supabase project on 2026-05-04.
+- `supabase db push` applied
+  `supabase/migrations/202605040002_drop_campaign_step_cap_defaults.sql` to
+  the hosted `livesheet-campaigns` Supabase project on 2026-05-04.
+- Verified `Scholium Outreach` has `daily_send_cap = 40`,
+  `touch_1_daily_cap = 20`, `touch_2_daily_cap = 20`, and
+  `touch_3_daily_cap = 0`.
 - `supabase db push` applied
   `supabase/migrations/202604290001_unsubscribe_tokens.sql` to the hosted
   `livesheet-campaigns` Supabase project on 2026-04-29.
