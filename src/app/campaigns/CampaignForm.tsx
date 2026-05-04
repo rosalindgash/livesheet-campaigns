@@ -101,7 +101,7 @@ export function CampaignForm({ action, campaign, options, submitLabel }: Campaig
           min={0}
           step={1}
           type="number"
-          defaultValue={campaign?.touch1DailyCap ?? 20}
+          defaultValue={campaign?.touch1DailyCap ?? ""}
         />
       </label>
 
@@ -113,7 +113,7 @@ export function CampaignForm({ action, campaign, options, submitLabel }: Campaig
           min={0}
           step={1}
           type="number"
-          defaultValue={campaign?.touch2DailyCap ?? 20}
+          defaultValue={campaign?.touch2DailyCap ?? ""}
         />
       </label>
 
@@ -125,7 +125,7 @@ export function CampaignForm({ action, campaign, options, submitLabel }: Campaig
           min={0}
           step={1}
           type="number"
-          defaultValue={campaign?.touch3DailyCap ?? 0}
+          defaultValue={campaign?.touch3DailyCap ?? ""}
         />
       </label>
 
