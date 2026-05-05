@@ -328,7 +328,6 @@ async function findMatchingSend(recipientEmail: string): Promise<MatchingSendRow
 function getBounceConfidence(parsed: ParsedBounce, resolved: ResolvedBounce): BounceConfidence {
   if (
     parsed.likelyBounce &&
-    parsed.statusCode &&
     isPermanentFailure(parsed) &&
     resolved.send &&
     resolved.recipientEmail &&
@@ -636,6 +635,9 @@ function isPermanentFailure(parsed: ParsedBounce): boolean {
     text.includes("no such user") ||
     text.includes("address not found") ||
     text.includes("does not exist") ||
+    text.includes("may not exist") ||
+    text.includes("may not have permission to post") ||
+    text.includes("no permission to post") ||
     text.includes("recipient address rejected") ||
     text.includes("mailbox unavailable")
   );
